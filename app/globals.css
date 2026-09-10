@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+:root {
+  --color-primary: #4A3B32;
+  --color-neutral-dark: #2B2B2B;
+  --color-bg: #F9F8F6;
+  --color-surface: #FFFFFF;
+  --color-border: #E8E5E1;
+}
+
+@theme inline {
+  --color-primary: var(--color-primary);
+  --color-neutral-dark: var(--color-neutral-dark);
+  --color-background: var(--color-bg);
+  --color-surface: var(--color-surface);
+  --color-border: var(--color-border);
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-neutral-dark);
+  font-family: 'Noto Sans KR', sans-serif;
+}
+/* 절대 금지: box-shadow, 그라데이션(gradient), 3D 효과 */
