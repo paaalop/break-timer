@@ -54,12 +54,13 @@ export function shiftWeek(weekStart: string, direction: 1 | -1): string {
   return formatDateToYYYYMMDD(d);
 }
 
-/** YYYY.MM.DD~DD 형태의 주 표시 문자열 */
+/** yy.mm.dd~dd 형태의 주 표시 문자열 */
 export function formatWeekRange(weekStart: string): string {
   const dates = getWeekDates(weekStart);
   const start = dates[0];
   const end = dates[dates.length - 1];
   const [sy, sm, sd] = start.split('-');
   const [, , ed] = end.split('-');
-  return `${sy}.${sm}.${sd}~${ed}`;
+  const yy = sy.slice(2); // 4자리 연도 → 2자리
+  return `${yy}.${sm}.${sd}~${ed}`;
 }

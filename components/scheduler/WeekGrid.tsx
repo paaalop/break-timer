@@ -38,25 +38,16 @@ const WeekGrid = forwardRef<HTMLDivElement, WeekGridProps>(function WeekGrid(
     <div ref={ref}>
       {/* 1. 모바일 전용 UI (< md): [주 선택바 + 요일선택바 통합 카드] + [선택된 요일 카드 1개] */}
       <div className="block md:hidden">
-        {/* 통합 네비게이터 카드 (1단: 주 탐색 / 구분선 / 2단: 요일 탐색) */}
-        <div
-          style={{
-            background: 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 4,
-            marginBottom: 10,
-            overflow: 'hidden',
-          }}
-        >
-          {/* 1단: 주 선택 바 (< 이전주 | 2026.09.07 ~ 2026.09.13 | 다음주 >) */}
+        {/* 통합 네비게이터 (배경 없음, 플랫 스타일) */}
+        <div style={{ marginBottom: 12 }}>
+          {/* 1단: 주 선택 — 화살표가 날짜 텍스트 바로 양옆에 위치 */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '6px 8px',
-              borderBottom: '1px solid var(--color-border)',
-              background: 'var(--color-surface)',
+              justifyContent: 'center',
+              gap: 4,
+              padding: '6px 0 4px',
             }}
           >
             <button
@@ -65,21 +56,22 @@ const WeekGrid = forwardRef<HTMLDivElement, WeekGridProps>(function WeekGrid(
               style={{
                 border: 'none',
                 background: 'transparent',
-                color: 'var(--color-neutral-dark)',
-                fontSize: 12,
-                fontWeight: 600,
+                color: '#999',
+                fontSize: 18,
                 cursor: 'pointer',
-                padding: '3px 6px',
+                padding: '2px 4px',
+                lineHeight: 1,
               }}
               aria-label="이전 주"
             >
-              &lt; 이전주
+              ‹
             </button>
             <span
               style={{
                 fontSize: 13,
                 fontWeight: 600,
                 color: 'var(--color-neutral-dark)',
+                letterSpacing: '-0.01em',
               }}
             >
               {formatWeekRange(weekStart)}
@@ -90,26 +82,24 @@ const WeekGrid = forwardRef<HTMLDivElement, WeekGridProps>(function WeekGrid(
               style={{
                 border: 'none',
                 background: 'transparent',
-                color: 'var(--color-neutral-dark)',
-                fontSize: 12,
-                fontWeight: 600,
+                color: '#999',
+                fontSize: 18,
                 cursor: 'pointer',
-                padding: '3px 6px',
+                padding: '2px 4px',
+                lineHeight: 1,
               }}
               aria-label="다음 주"
             >
-              다음주 &gt;
+              ›
             </button>
           </div>
 
-          {/* 2단: 요일 선택 바 (1행: 7 (월), 2행: 인원수) */}
+          {/* 2단: 요일 선택 — 배경 없음, 선택된 블럭 전체 하단 밑줄 */}
           <div
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(7, 1fr)',
-              gap: 2,
-              padding: '4px 4px',
-              background: 'var(--color-bg)',
+              padding: '4px 0 0',
             }}
           >
             {dates.map((date) => {
@@ -131,43 +121,52 @@ const WeekGrid = forwardRef<HTMLDivElement, WeekGridProps>(function WeekGrid(
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    padding: '5px 1px',
-                    borderRadius: 3,
+                    padding: '6px 2px 8px',
                     border: 'none',
+                    borderBottom: isActive ? '2px solid var(--color-neutral-dark)' : '2px solid transparent',
+                    background: 'transparent',
                     cursor: 'pointer',
-                    background: isActive ? 'var(--color-primary)' : 'transparent',
                     color: isActive
-                      ? '#FFFFFF'
+                      ? 'var(--color-neutral-dark)'
                       : isWeekend
                       ? '#C0392B'
-                      : 'var(--color-neutral-dark)',
-                    transition: 'all 0.15s ease',
+                      : '#999',
+                    transition: 'color 0.12s ease, border-color 0.12s ease',
                   }}
                 >
-                  {/* 1행: 7 (월) */}
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: isActive ? 700 : 600,
-                      whiteSpace: 'nowrap',
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    {dateNum} ({dayName})
-                  </span>
-
-                  {/* 2행: 인원수 */}
+                  {/* 요일 */}
                   <span
                     style={{
                       fontSize: 10,
-                      fontWeight: isActive ? 600 : 500,
-                      marginTop: 2,
-                      opacity: isActive ? 0.9 : 0.65,
-                      whiteSpace: 'nowrap',
+                      fontWeight: isActive ? 700 : 500,
+                      lineHeight: 1.2,
+                      marginBottom: 3,
+                    }}
+                  >
+                    {dayName}
+                  </span>
+                  {/* 날짜 — 선택 시 볼드 */}
+                  <span
+                    style={{
+                      fontSize: 14,
+                      fontWeight: isActive ? 800 : 500,
+                      lineHeight: 1.2,
+                      letterSpacing: '-0.02em',
+                    }}
+                  >
+                    {dateNum}
+                  </span>
+                  {/* 인원수 */}
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: isActive ? 600 : 400,
+                      marginTop: 3,
+                      opacity: isActive ? 1 : 0.45,
                       lineHeight: 1.2,
                     }}
                   >
-                    {dayScheduleCount}명
+                    {dayScheduleCount > 0 ? `${dayScheduleCount}명` : ''}
                   </span>
                 </button>
               );

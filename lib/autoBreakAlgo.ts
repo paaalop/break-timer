@@ -92,11 +92,30 @@ export function autoAssignBreaks(
     return { allocations: {}, warnings: [] };
   }
 
-  // 우선순위: 오마 -> 오픈 -> 파트 -> 마감
+  // 근무조(shift_type)별 총 인원 수
+  const shiftTotalCounts = new Map<string, number>();
+  for (const s of schedules) {
+    shiftTotalCounts.set(s.shift_type, (shiftTotalCounts.get(s.shift_type) ?? 0) + 1);
+  }
+
+  // 75% 룰: 해당 근무조 인원 중 동시 휴게 가능한 최대 인원
+  // (4명 -> 3명, 3명 -> 2명, 2명 -> 1명, 1명 -> 1명)
+  function getMaxBreakAllowedForShift(shiftType: string): number {
+    const total = shiftTotalCounts.get(shiftType) ?? 0;
+    if (total <= 1) return 1;
+    return Math.floor(total * 0.75);
+  }
+
+  // 우선순위: 오마 -> 오픈 -> 파트 -> 마감, 동일 shift_type 내에서는 매니저 직무 보유자 우선 배정
   const priorityOrder: Record<string, number> = { oma: 0, open: 1, part: 2, close: 3 };
-  const queue = [...schedules].sort(
-    (a, b) => (priorityOrder[a.shift_type] ?? 99) - (priorityOrder[b.shift_type] ?? 99)
-  );
+  const queue = [...schedules].sort((a, b) => {
+    const pA = priorityOrder[a.shift_type] ?? 99;
+    const pB = priorityOrder[b.shift_type] ?? 99;
+    if (pA !== pB) return pA - pB;
+    const isManagerA = a.employee?.available_roles?.includes('manager') ? 0 : 1;
+    const isManagerB = b.employee?.available_roles?.includes('manager') ? 0 : 1;
+    return isManagerA - isManagerB;
+  });
 
   const allocationsMin = new Map<string, { startMin: number; endMin: number }>();
 
@@ -130,22 +149,34 @@ export function autoAssignBreaks(
         }
       }
 
-      // 각 30분 단위 블록마다 인원 및 필수 직무(캐셔, 패스) 체크
+      // 각 30분 단위 블록마다 인원, 필수 직무(매니저, 캐셔, 패스), 75% 조 분할 룰 체크
       let isValid = true;
       for (let t = slotStartMin; t < slotEndMin; t += BREAK_BLOCK_MINUTES) {
         let countAtT = 0;
         const rolesAtT = new Set<string>();
+        const breakCountByShift = new Map<string, number>();
 
         for (const s of schedules) {
           const sStart = toMinutes(s.start_time);
           const sEnd = toMinutes(s.end_time);
           if (t >= sStart && t < sEnd) {
-            if (!onBreakIds.has(s.employee_id)) {
+            if (onBreakIds.has(s.employee_id)) {
+              breakCountByShift.set(s.shift_type, (breakCountByShift.get(s.shift_type) ?? 0) + 1);
+            } else {
               countAtT++;
               for (const r of s.employee?.available_roles ?? []) rolesAtT.add(r);
             }
           }
         }
+
+        // 75% 룰 검사: 특정 근무조 인원의 75%를 초과하여 동시에 쉴 수 없음 (최소 1명 이상 근무 유지)
+        for (const [sType, bCount] of breakCountByShift) {
+          if (bCount > getMaxBreakAllowedForShift(sType)) {
+            isValid = false;
+            break;
+          }
+        }
+        if (!isValid) break;
 
         const scheduledAtT = schedules.filter((s) => {
           const sStart = toMinutes(s.start_time);

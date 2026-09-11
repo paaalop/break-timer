@@ -3,6 +3,7 @@
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
+import Input from '@/components/ui/Input';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -84,7 +85,7 @@ export default function LoginPage() {
             >
               아이디
             </label>
-            <input
+            <Input
               id="login-username"
               type="text"
               value={username}
@@ -109,7 +110,7 @@ export default function LoginPage() {
             >
               비밀번호
             </label>
-            <input
+            <Input
               id="login-password"
               type="password"
               value={password}

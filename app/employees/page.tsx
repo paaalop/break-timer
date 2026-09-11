@@ -75,10 +75,10 @@ export default function EmployeesPage() {
     <div style={{ minHeight: '100vh', background: 'var(--color-bg)' }}>
       <Header />
 
-      <main className="max-w-[1400px] mx-auto px-2 py-4 sm:px-6 sm:py-8">
-        {/* 페이지 헤더 */}
-        <div style={{ marginBottom: 12 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--color-neutral-dark)', margin: 0 }}>
+      <main className="max-w-[1400px] mx-auto px-3 pt-3 pb-20 sm:px-8 md:px-10 sm:pt-4 sm:pb-24">
+        {/* 페이지 헤더: 제목 좌측 여백은 pl-2(8px) + px-3(12px) = 20px로 그대로 유지 */}
+        <div className="pl-2 sm:pl-0" style={{ marginBottom: 16, minHeight: 32, display: 'flex', alignItems: 'center' }}>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--color-neutral-dark)', margin: 0 }}>
             직원 관리
           </h1>
         </div>

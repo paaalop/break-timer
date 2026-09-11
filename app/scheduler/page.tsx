@@ -73,63 +73,17 @@ export default function SchedulerPage() {
     <div style={{ minHeight: '100vh', background: 'var(--color-bg)' }}>
       <Header />
 
-      <main className="max-w-[1400px] mx-auto px-2 py-4 sm:px-6 sm:py-8">
-        {/* 페이지 헤더: 모바일/데스크톱 최적화 반응형 레이아웃 */}
+      <main className="max-w-[1400px] mx-auto px-3 pt-3 pb-28 sm:px-8 md:px-10 sm:pt-4 sm:pb-24">
+        {/* 페이지 헤더 */}
         <div style={{ marginBottom: 16 }}>
-          {/* 모바일 화면 (< md): 2단 정돈 구조 */}
-          {/* 모바일 화면 (< md): 1행 타이틀 + 우측 브라운 액션 버튼 */}
-          <div className="flex items-center justify-between md:hidden">
-            <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--color-neutral-dark)', margin: 0 }}>
-              주간 근무표
-            </h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <button
-                id="autofill-schedule-btn-m"
-                onClick={() => autoFillWeekSchedules(selectedWeekStart, employees)}
-                disabled={isLoading || employees.length === 0}
-                style={{
-                  padding: '5px 10px',
-                  fontSize: 11,
-                  fontWeight: 600,
-                  border: 'none',
-                  borderRadius: 4,
-                  background: 'var(--color-primary)',
-                  color: '#FFFFFF',
-                  cursor: employees.length === 0 ? 'not-allowed' : 'pointer',
-                  opacity: employees.length === 0 ? 0.5 : 1,
-                }}
-              >
-                자동 채우기
-              </button>
-              <button
-                id="download-schedule-btn-m"
-                onClick={handleDownload}
-                style={{
-                  padding: '5px 10px',
-                  fontSize: 11,
-                  fontWeight: 600,
-                  border: 'none',
-                  borderRadius: 4,
-                  background: 'var(--color-primary)',
-                  color: '#FFFFFF',
-                  cursor: 'pointer',
-                }}
-              >
-                이미지 저장
-              </button>
-            </div>
-          </div>
-
-          {/* 데스크톱 화면 (md: 이상): 1행 통합 레이아웃 */}
-          <div className="hidden md:flex items-center justify-between">
-            {/* 좌측: 타이틀 + 주 탐색 네비게이터 */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--color-neutral-dark)', margin: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 36 }}>
+            <div className="pl-2 sm:pl-0" style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+              <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--color-neutral-dark)', margin: 0 }}>
                 주간 근무표
               </h1>
 
-              {/* 주 탐색 네비게이터 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {/* 데스크톱 주 탐색 네비게이터 (md: 이상 표시) */}
+              <div className="hidden md:flex items-center gap-1.5">
                 <button
                   id="prev-week-btn"
                   onClick={handlePrevWeek}
@@ -160,11 +114,12 @@ export default function SchedulerPage() {
               </div>
             </div>
 
-            {/* 우측 정렬 기능 버튼들 (브라운 배경) */}
+            {/* 우측: 이미지 저장 아이콘 버튼 + (데스크톱) 자동채우기 버튼 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {/* 기본 스케줄 자동 채우기 버튼 */}
+              {/* 데스크톱 전용 자동 채우기 버튼 */}
               <button
                 id="autofill-schedule-btn"
+                className="hidden md:block"
                 onClick={() => autoFillWeekSchedules(selectedWeekStart, employees)}
                 disabled={isLoading || employees.length === 0}
                 style={{
@@ -172,7 +127,7 @@ export default function SchedulerPage() {
                   fontSize: 12,
                   fontWeight: 600,
                   border: 'none',
-                  borderRadius: 4,
+                  borderRadius: 6,
                   background: 'var(--color-primary)',
                   color: '#FFFFFF',
                   cursor: employees.length === 0 ? 'not-allowed' : 'pointer',
@@ -183,22 +138,27 @@ export default function SchedulerPage() {
                 자동 채우기
               </button>
 
-              {/* 다운로드 버튼 */}
+              {/* 이미지 저장 아이콘 버튼 (공통) */}
               <button
                 id="download-schedule-btn"
                 onClick={handleDownload}
+                title="이미지 저장"
                 style={{
-                  padding: '6px 12px',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  border: 'none',
-                  borderRadius: 4,
-                  background: 'var(--color-primary)',
-                  color: '#FFFFFF',
+                  width: 36,
+                  height: 36,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 8,
+                  background: 'var(--color-surface)',
+                  color: 'var(--color-neutral-dark)',
                   cursor: 'pointer',
+                  fontSize: 16,
                 }}
+                aria-label="이미지 저장"
               >
-                이미지 저장
+                📷
               </button>
             </div>
           </div>
@@ -211,7 +171,7 @@ export default function SchedulerPage() {
               border: '1px solid #C0392B',
               background: '#FDF2F1',
               padding: '10px 16px',
-              borderRadius: 4,
+              borderRadius: 8,
               fontSize: 13,
               color: '#C0392B',
               marginBottom: 16,
@@ -234,8 +194,8 @@ export default function SchedulerPage() {
             style={{
               border: '1px solid var(--color-border)',
               background: 'var(--color-surface)',
-              borderRadius: 4,
-              padding: '24px 20px',
+              borderRadius: 12,
+              padding: '28px 20px',
               marginBottom: 16,
               display: 'flex',
               flexDirection: 'column',
@@ -257,11 +217,11 @@ export default function SchedulerPage() {
               disabled={isLoading || employees.length === 0}
               style={{
                 marginTop: 6,
-                padding: '8px 18px',
+                padding: '10px 20px',
                 fontSize: 13,
                 fontWeight: 600,
                 border: 'none',
-                borderRadius: 4,
+                borderRadius: 8,
                 background: 'var(--color-primary)',
                 color: '#FFFFFF',
                 cursor: employees.length === 0 ? 'not-allowed' : 'pointer',
@@ -273,7 +233,7 @@ export default function SchedulerPage() {
           </div>
         )}
 
-        {/* 주간 그리드: 초기 데이터가 없을 때만 전체 로딩 표시, 기존 데이터가 있으면 언마운트하지 않아 스크롤 유지 */}
+        {/* 주간 그리드 */}
         {isLoading && schedules.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 60, fontSize: 14, color: '#999' }}>
             불러오는 중...
@@ -290,6 +250,48 @@ export default function SchedulerPage() {
           />
         )}
       </main>
+
+      {/* ── 모바일 하단 고정: 자동 채우기 버튼 ─────────────────────────────── */}
+      <div
+        className="block md:hidden"
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          padding: '12px 16px',
+          paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
+          background: 'var(--color-bg)',
+          borderTop: '1px solid var(--color-border)',
+          zIndex: 100,
+        }}
+      >
+        <button
+          id="autofill-schedule-btn-mobile"
+          onClick={() => autoFillWeekSchedules(selectedWeekStart, employees)}
+          disabled={isLoading || employees.length === 0}
+          style={{
+            width: '100%',
+            padding: '14px 0',
+            fontSize: 14,
+            fontWeight: 700,
+            border: 'none',
+            borderRadius: 10,
+            background: employees.length === 0 ? '#C8C4BE' : 'var(--color-primary)',
+            color: '#FFFFFF',
+            cursor: employees.length === 0 ? 'not-allowed' : 'pointer',
+            letterSpacing: '-0.02em',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+          }}
+          title="등록된 직원들의 근무 가능 요일과 기본 근무 타입으로 이번 주 스케줄을 자동 배치합니다"
+        >
+          <span style={{ fontSize: 16 }}>⚡</span>
+          자동 채우기
+        </button>
+      </div>
 
       {/* 수동 휴게 수정 모달 */}
       {manualBreakTarget && (

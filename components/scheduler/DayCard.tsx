@@ -24,15 +24,10 @@ export default function DayCard({ date, schedules, employees }: DayCardProps) {
   // 스케줄 목록 정렬: 1. 근무시간 오름차순 (시작시간 -> 종료시간), 2. 이름 오름차순
   const sortedSchedules = useMemo(() => {
     return [...schedules].sort((a, b) => {
-      // 1. 근무 시작 시간 오름차순
       const startCompare = a.start_time.localeCompare(b.start_time);
       if (startCompare !== 0) return startCompare;
-
-      // 근무 종료 시간 오름차순 (시작 시간이 같을 때)
       const endCompare = a.end_time.localeCompare(b.end_time);
       if (endCompare !== 0) return endCompare;
-
-      // 2. 이름 오름차순
       const nameA = a.employee?.name || '';
       const nameB = b.employee?.name || '';
       return nameA.localeCompare(nameB, 'ko');
@@ -126,111 +121,98 @@ export default function DayCard({ date, schedules, employees }: DayCardProps) {
     <div
       style={{
         border: '1px solid var(--color-border)',
-        borderRadius: 4,
+        borderRadius: 12,
         background: 'var(--color-surface)',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
       }}
     >
-      {/* 날짜 헤더 바 (+, - 버튼 포함, 왼쪽 정렬) */}
+      {/* ── 날짜 헤더 바 ─────────────────────────────────────────────── */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 8,
-          padding: '6px 8px',
+          justifyContent: 'space-between',
+          padding: '12px 16px',
           background: 'var(--color-bg)',
           borderBottom: '1px solid var(--color-border)',
         }}
       >
-        {/* 날짜 라벨 */}
-        <span
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            color: isWeekend ? '#C0392B' : 'var(--color-neutral-dark)',
-          }}
-        >
-          {formatDayLabel(date)}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* 날짜 라벨 */}
+          <span
+            style={{
+              fontSize: 14,
+              fontWeight: 700,
+              color: isWeekend ? '#C0392B' : 'var(--color-neutral-dark)',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            {formatDayLabel(date)}
+          </span>
 
-        {/* +, - 버튼 영역 (날짜 바로 옆 왼쪽 정렬) */}
-        <div
-          ref={dropdownRef}
-          style={{ display: 'flex', alignItems: 'center', gap: 4, position: 'relative' }}
-        >
-          {/* + 직원 추가 버튼 */}
+          {/* 선택 삭제 버튼 */}
+          {selectedScheduleIds.length > 0 && (
+            <button
+              onClick={handleDeleteSelected}
+              style={{
+                padding: '3px 10px',
+                fontSize: 12,
+                fontWeight: 600,
+                background: '#FDF2F1',
+                color: '#C0392B',
+                border: '1px solid #C0392B',
+                borderRadius: 6,
+                cursor: 'pointer',
+                letterSpacing: '-0.02em',
+              }}
+            >
+              {selectedScheduleIds.length}명 삭제
+            </button>
+          )}
+        </div>
+
+        {/* + 직원 추가 버튼 */}
+        <div ref={dropdownRef} style={{ position: 'relative' }}>
           <button
             onClick={() => setShowAddDropdown((v) => !v)}
             disabled={isAdding || availableEmployees.length === 0}
             title={availableEmployees.length === 0 ? '추가 가능한 직원이 없습니다' : '직원 추가'}
             style={{
-              width: 22,
-              height: 22,
-              padding: 0,
+              padding: '5px 12px',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 14,
+              gap: 4,
+              fontSize: 12,
               fontWeight: 600,
-              background: 'var(--color-primary)',
-              color: '#FFFFFF',
+              background: availableEmployees.length === 0 ? '#F0EEE9' : 'var(--color-primary)',
+              color: availableEmployees.length === 0 ? '#B0A898' : '#FFFFFF',
               border: 'none',
-              borderRadius: 3,
+              borderRadius: 8,
               cursor: availableEmployees.length === 0 ? 'not-allowed' : 'pointer',
-              opacity: availableEmployees.length === 0 ? 0.35 : 1,
+              letterSpacing: '-0.02em',
             }}
           >
-            +
+            <span style={{ fontSize: 14, lineHeight: 1 }}>+</span>
+            직원 추가
           </button>
 
-          {/* - 선택 삭제 버튼 */}
-          <button
-            onClick={handleDeleteSelected}
-            disabled={selectedScheduleIds.length === 0}
-            title={
-              selectedScheduleIds.length > 0
-                ? `선택한 ${selectedScheduleIds.length}명 삭제`
-                : '삭제할 직원을 체크하세요'
-            }
-            style={{
-              width: 22,
-              height: 22,
-              padding: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 14,
-              fontWeight: 600,
-              background: selectedScheduleIds.length > 0 ? '#FDF2F1' : '#F5F5F5',
-              color: selectedScheduleIds.length > 0 ? '#C0392B' : '#AAAAAA',
-              border:
-                selectedScheduleIds.length > 0
-                  ? '1px solid #C0392B'
-                  : '1px solid var(--color-border)',
-              borderRadius: 3,
-              cursor: selectedScheduleIds.length > 0 ? 'pointer' : 'not-allowed',
-            }}
-          >
-            -
-          </button>
-
-          {/* + 클릭 시 미배정 직원 선택 드롭다운 팝업 (왼쪽 정렬) */}
+          {/* 직원 선택 드롭다운 */}
           {showAddDropdown && availableEmployees.length > 0 && (
             <div
               style={{
                 position: 'absolute',
-                top: 26,
-                left: 0,
+                top: 36,
+                right: 0,
                 background: 'var(--color-surface)',
                 border: '1px solid var(--color-border)',
-                borderRadius: 4,
+                borderRadius: 10,
                 zIndex: 60,
-                minWidth: 120,
-                maxHeight: 180,
+                minWidth: 140,
+                maxHeight: 200,
                 overflowY: 'auto',
-                boxShadow: 'none',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
               }}
             >
               {availableEmployees.map((emp) => (
@@ -240,14 +222,16 @@ export default function DayCard({ date, schedules, employees }: DayCardProps) {
                   style={{
                     display: 'block',
                     width: '100%',
-                    padding: '6px 10px',
-                    fontSize: 12,
+                    padding: '10px 14px',
+                    fontSize: 13,
                     textAlign: 'left',
                     border: 'none',
                     borderBottom: '1px solid var(--color-border)',
                     background: 'transparent',
                     color: 'var(--color-neutral-dark)',
                     cursor: 'pointer',
+                    fontWeight: 500,
+                    letterSpacing: '-0.02em',
                   }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = '#F9F8F6')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
@@ -260,64 +244,94 @@ export default function DayCard({ date, schedules, employees }: DayCardProps) {
         </div>
       </div>
 
-      {/* 직원관리 스타일의 테이블 그리드 (휴게시간 칼럼 제거) */}
-      <table
-        style={{
-          width: '100%',
-          tableLayout: 'fixed',
-          borderCollapse: 'collapse',
-          background: 'var(--color-surface)',
-        }}
-      >
-        <thead>
-          <tr>
-            {/* 체크박스 (전체 선택) */}
-            <th style={{ ...thStyle, width: 28, padding: '4px 2px' }}>
-              <input
-                type="checkbox"
-                checked={isAllSelected}
-                onChange={handleToggleSelectAll}
-                disabled={schedules.length === 0}
-                style={{ cursor: schedules.length === 0 ? 'default' : 'pointer', margin: 0 }}
-                aria-label="전체 선택"
-              />
-            </th>
-            {/* 이름 */}
-            <th style={{ ...thStyle, width: '22%' }}>이름</th>
-            {/* 근무 타입 */}
-            <th style={{ ...thStyle, width: '24%' }}>근무 타입</th>
-            {/* 근무 시간 (마지막 칼럼 우측 선 없음) */}
-            <th style={{ ...thStyle, width: '54%', borderRight: 'none' }}>근무 시간</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sortedSchedules.length === 0 ? (
+      {/* ── 모바일: 카드 리스트 뷰 (md 미만) ─────────────────────────── */}
+      <div className="block md:hidden">
+        {sortedSchedules.length === 0 ? (
+          <p
+            style={{
+              padding: '28px 16px',
+              textAlign: 'center',
+              color: '#bbb',
+              fontSize: 13,
+              margin: 0,
+              letterSpacing: '-0.02em',
+            }}
+          >
+            근무자 없음
+          </p>
+        ) : (
+          sortedSchedules.map((s, idx) => (
+            <EmployeeRow
+              key={s.id}
+              schedule={s}
+              isSelected={selectedScheduleIds.includes(s.id)}
+              onToggleSelect={handleToggleSelectOne}
+              isLast={idx === sortedSchedules.length - 1}
+            />
+          ))
+        )}
+      </div>
+
+      {/* ── 데스크톱: 테이블 뷰 (md 이상) ────────────────────────────── */}
+      <div className="hidden md:block">
+        <table
+          style={{
+            width: '100%',
+            tableLayout: 'fixed',
+            borderCollapse: 'collapse',
+            background: 'var(--color-surface)',
+          }}
+        >
+          <thead>
             <tr>
-              <td
-                colSpan={4}
-                style={{
-                  padding: '24px 0',
-                  textAlign: 'center',
-                  color: '#bbb',
-                  fontSize: 12,
-                  borderBottom: 'none',
-                }}
-              >
-                근무자 없음
-              </td>
+              {/* 체크박스 (전체 선택) */}
+              <th style={{ ...thStyle, width: 28, padding: '4px 2px' }}>
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  onChange={handleToggleSelectAll}
+                  disabled={schedules.length === 0}
+                  style={{ cursor: schedules.length === 0 ? 'default' : 'pointer', margin: 0 }}
+                  aria-label="전체 선택"
+                />
+              </th>
+              {/* 이름 */}
+              <th style={{ ...thStyle, width: '22%' }}>이름</th>
+              {/* 근무 타입 */}
+              <th style={{ ...thStyle, width: '24%' }}>근무 타입</th>
+              {/* 근무 시간 (마지막 칼럼 우측 선 없음) */}
+              <th style={{ ...thStyle, width: '54%', borderRight: 'none' }}>근무 시간</th>
             </tr>
-          ) : (
-            sortedSchedules.map((s) => (
-              <EmployeeRow
-                key={s.id}
-                schedule={s}
-                isSelected={selectedScheduleIds.includes(s.id)}
-                onToggleSelect={handleToggleSelectOne}
-              />
-            ))
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {sortedSchedules.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={4}
+                  style={{
+                    padding: '24px 0',
+                    textAlign: 'center',
+                    color: '#bbb',
+                    fontSize: 12,
+                    borderBottom: 'none',
+                  }}
+                >
+                  근무자 없음
+                </td>
+              </tr>
+            ) : (
+              sortedSchedules.map((s) => (
+                <EmployeeRow
+                  key={s.id}
+                  schedule={s}
+                  isSelected={selectedScheduleIds.includes(s.id)}
+                  onToggleSelect={handleToggleSelectOne}
+                />
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

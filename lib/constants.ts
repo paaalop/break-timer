@@ -1,11 +1,13 @@
 import { Role, DayOfWeek, ShiftType } from '@/types';
 
 export const ROLE_OPTIONS: { value: Role; label: string }[] = [
+  { value: 'manager', label: '매니저' },
   { value: 'cashier', label: '캐셔' },
   { value: 'pass', label: '패스' },
 ];
 
 export const ROLE_LABELS: Record<string, string> = {
+  manager: '매니저',
   cashier: '캐셔',
   pass: '패스',
 };
@@ -46,7 +48,7 @@ export const SHIFT_DEFAULTS: Record<ShiftType, { start: string; end: string }> =
   part:  { start: '10:00', end: '15:00' },
 };
 
-export const ALL_ROLES: Role[] = ['cashier', 'pass'];
+export const ALL_ROLES: Role[] = ['manager', 'cashier', 'pass'];
 export const BREAK_BLOCK_MINUTES = 30;
 export const BREAK_BLOCKS: Record<Exclude<ShiftType, 'part'>, number> = {
   oma: 3, open: 3, close: 3,
