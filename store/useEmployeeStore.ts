@@ -30,8 +30,13 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       if (!supabase) {
-        // 목업 모드: is_deleted=false만 반환
-        set({ employees: mockEmployees.filter((e) => !e.is_deleted), isLoading: false });
+        // 목업 모드: is_deleted=false만 반환 (이름 가나다순 정렬)
+        set({
+          employees: mockEmployees
+            .filter((e) => !e.is_deleted)
+            .sort((a, b) => a.name.localeCompare(b.name, 'ko')),
+          isLoading: false,
+        });
         return;
       }
 
@@ -39,10 +44,13 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
         .from('employees')
         .select('*')
         .eq('is_deleted', false)
-        .order('created_at', { ascending: true });
+        .order('name', { ascending: true });
 
       if (error) throw new Error(error.message);
-      set({ employees: (data as Employee[]) ?? [], isLoading: false });
+      const sortedData = ((data as Employee[]) ?? []).sort((a, b) =>
+        a.name.localeCompare(b.name, 'ko')
+      );
+      set({ employees: sortedData, isLoading: false });
     } catch (err) {
       const message = err instanceof Error ? err.message : '직원 목록 조회 실패';
       set({ error: message, isLoading: false });
@@ -56,6 +64,7 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
         const newEmployee: Employee = {
           id: generateMockId(),
           ...data,
+          is_minor: data.is_minor ?? false,
           is_deleted: false,
           created_at: new Date().toISOString(),
         };
@@ -64,15 +73,26 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
         return;
       }
 
-      const { data: inserted, error } = await supabase
+      let insertRes = await supabase
         .from('employees')
-        .insert([{ ...data, is_deleted: false }])
+        .insert([{ ...data, is_minor: data.is_minor ?? false, is_deleted: false }])
         .select()
         .single();
 
-      if (error) throw new Error(error.message);
+      // DB에 is_minor 컬럼이 아직 생성되지 않은 경우(PGRST204) fallback: is_minor 제외 후 재시도
+      if (insertRes.error && insertRes.error.message.includes('is_minor')) {
+        console.warn('[Supabase] is_minor 컬럼이 DB에 없습니다. 마이그레이션(20260913000000_add_is_minor_to_employees.sql) 적용이 필요합니다.');
+        const { is_minor: _, ...fallbackData } = data;
+        insertRes = await supabase
+          .from('employees')
+          .insert([{ ...fallbackData, is_deleted: false }])
+          .select()
+          .single();
+      }
+
+      if (insertRes.error) throw new Error(insertRes.error.message);
       set((state) => ({
-        employees: [...state.employees, inserted as Employee],
+        employees: [...state.employees, insertRes.data as Employee],
         isLoading: false,
       }));
     } catch (err) {
@@ -92,17 +112,29 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
         return;
       }
 
-      const { data: updated, error } = await supabase
+      let updateRes = await supabase
         .from('employees')
         .update(data)
         .eq('id', id)
         .select()
         .single();
 
-      if (error) throw new Error(error.message);
+      // DB에 is_minor 컬럼이 아직 생성되지 않은 경우 fallback
+      if (updateRes.error && updateRes.error.message.includes('is_minor')) {
+        console.warn('[Supabase] is_minor 컬럼이 DB에 없습니다. 마이그레이션 적용이 필요합니다.');
+        const { is_minor: _, ...fallbackData } = data;
+        updateRes = await supabase
+          .from('employees')
+          .update(fallbackData)
+          .eq('id', id)
+          .select()
+          .single();
+      }
+
+      if (updateRes.error) throw new Error(updateRes.error.message);
       set((state) => ({
         employees: state.employees.map((e) =>
-          e.id === id ? (updated as Employee) : e
+          e.id === id ? (updateRes.data as Employee) : e
         ),
         isLoading: false,
       }));

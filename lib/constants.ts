@@ -54,3 +54,4 @@ export const BREAK_BLOCKS: Record<Exclude<ShiftType, 'part'>, number> = {
   oma: 3, open: 3, close: 3,
 };
 export const PART_BREAK_BLOCKS = 1;
+export const MINOR_BREAK_BLOCKS = 5; // 미성년자: 2시간 30분 (150분)

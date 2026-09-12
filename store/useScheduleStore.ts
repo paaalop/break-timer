@@ -22,6 +22,7 @@ interface ScheduleStore {
   autoFillWeekSchedules: (weekStart: string, employees: Employee[]) => Promise<void>;
   runAutoBreak: (date: string, breakStartRef: string) => Promise<void>;
   setManualBreak: (id: string, start: string, end: string) => Promise<void>;
+  syncDaySchedules: (date: string, mode: 'missing_only' | 'reset_all', employees: Employee[]) => Promise<void>;
 }
 
 // 목업 데이터
@@ -36,7 +37,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
   selectedWeekStart: getWeekStartFromDate(new Date()),
   schedules: [],
   breakWarnings: [],
-  minTotalStaff: 3,
+  minTotalStaff: 4,
   isLoading: false,
   error: null,
 
@@ -252,6 +253,67 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
     } catch (err) {
       const message = err instanceof Error ? err.message : '스케줄 자동 채우기 실패';
       set({ error: message, isLoading: false });
+    }
+  },
+
+  syncDaySchedules: async (date: string, mode: 'missing_only' | 'reset_all', employees: import('@/types').Employee[]) => {
+    set({ isLoading: true, error: null });
+    try {
+      const { schedules, upsertSchedule, deleteSchedules } = get();
+      const dayOfWeek = parseDate(date).getDay();
+      const activeEmployees = employees.filter((e) => !e.is_deleted);
+      const availableForDay = activeEmployees.filter((e) =>
+        e.available_days.includes(dayOfWeek as import('@/types').DayOfWeek)
+      );
+
+      if (mode === 'reset_all') {
+        const currentDayScheduleIds = schedules
+          .filter((s) => s.work_date === date)
+          .map((s) => s.id);
+        if (currentDayScheduleIds.length > 0) {
+          await deleteSchedules(currentDayScheduleIds);
+        }
+        for (const emp of availableForDay) {
+          const defaultShift = emp.default_shift_types[0] ?? 'open';
+          const defaults = SHIFT_DEFAULTS[defaultShift];
+          await upsertSchedule({
+            employee_id: emp.id,
+            work_date: date,
+            shift_type: defaultShift,
+            start_time: defaults.start,
+            end_time: defaults.end,
+            break_start_time: null,
+            break_end_time: null,
+          });
+        }
+      } else {
+        // missing_only: 아직 배정되지 않은 직원만 기본 시프트로 추가
+        const currentAssignedIds = new Set(
+          schedules.filter((s) => s.work_date === date).map((s) => s.employee_id)
+        );
+        for (const emp of availableForDay) {
+          if (!currentAssignedIds.has(emp.id)) {
+            const defaultShift = emp.default_shift_types[0] ?? 'open';
+            const defaults = SHIFT_DEFAULTS[defaultShift];
+            await upsertSchedule({
+              employee_id: emp.id,
+              work_date: date,
+              shift_type: defaultShift,
+              start_time: defaults.start,
+              end_time: defaults.end,
+              break_start_time: null,
+              break_end_time: null,
+            });
+          }
+        }
+      }
+
+      await get().fetchSchedules(get().selectedWeekStart, true);
+      set({ isLoading: false });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '직원 정보 동기화 실패';
+      set({ error: message, isLoading: false });
+      throw err;
     }
   },
 

@@ -4,7 +4,7 @@
  */
 
 import type { WorkSchedule, AlgoResult, BreakWarning, OptimizationPolicy } from '@/types';
-import { ALL_ROLES, BREAK_BLOCK_MINUTES, BREAK_BLOCKS, PART_BREAK_BLOCKS } from '@/types';
+import { ALL_ROLES, BREAK_BLOCK_MINUTES, BREAK_BLOCKS, PART_BREAK_BLOCKS, MINOR_BREAK_BLOCKS } from '@/types';
 
 // ─── 시간 유틸리티 ───────────────────────────────────────────────────────────
 
@@ -120,8 +120,10 @@ export function autoAssignBreaks(
   const allocationsMin = new Map<string, { startMin: number; endMin: number }>();
 
   for (const worker of queue) {
-    const blocks =
-      worker.shift_type === 'part'
+    const isMinor = Boolean(worker.employee?.is_minor);
+    const blocks = isMinor
+      ? MINOR_BREAK_BLOCKS
+      : worker.shift_type === 'part'
         ? PART_BREAK_BLOCKS
         : ((BREAK_BLOCKS as Record<string, number>)[worker.shift_type] ?? 3);
 

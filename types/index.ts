@@ -13,6 +13,7 @@ export interface Employee {
   available_roles: Role[];
   available_days: DayOfWeek[];
   default_shift_types: ShiftType[];
+  is_minor?: boolean;
   is_deleted: boolean;
   created_at: string;
 }

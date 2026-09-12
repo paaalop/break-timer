@@ -85,10 +85,10 @@ export default function AutoBreakRuleModal({ isOpen, onClose }: AutoBreakRuleMod
           {/* 1. 조 분할 75% */}
           <div>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-neutral-dark)', margin: 0, letterSpacing: '-0.035em' }}>
-              근무조별 75% 분할
+              1. 근무조별 75% 분할
             </h3>
             <p style={{ fontSize: 15, fontWeight: 400, color: '#334155', margin: '8px 0 0', lineHeight: 1.55, letterSpacing: '-0.035em' }}>
-              특정 근무조 전체가 자리를 비울 수 없도록,<br/>최대 75%의 인원만 동시 휴게가 허용됩니다.
+              특정 근무조 전체가 자리를 비울 수 없도록,<br />최대 75%의 인원만 동시 휴게가 허용됩니다.
             </p>
             <p style={{ fontSize: 12, fontWeight: 400, color: 'var(--color-neutral-dark)', margin: '10px 0 0', lineHeight: 1.5, letterSpacing: '-0.025em' }}>
               💡 오픈조 4명이 앞시간을 독점하지 않아, 마감 매니저가 일찍 식사할 수 있습니다.
@@ -98,10 +98,10 @@ export default function AutoBreakRuleModal({ isOpen, onClose }: AutoBreakRuleMod
           {/* 2. 필수 직무 상시 상주 */}
           <div>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-neutral-dark)', margin: 0, letterSpacing: '-0.035em' }}>
-              필수 직무 상시 상주
+              2. 필수 직무 상시 상주
             </h3>
             <p style={{ fontSize: 15, fontWeight: 400, color: '#334155', margin: '8px 0 0', lineHeight: 1.55, letterSpacing: '-0.035em' }}>
-              근무 중인 직원 중 매니저, 캐셔, 패스 직무가<br/>각각 1명 이상 존재해야 합니다.
+              근무 중인 직원 중 매니저, 캐셔, 패스 직무가<br />각각 1명 이상 존재해야 합니다.
             </p>
           </div>
 
@@ -118,6 +118,9 @@ export default function AutoBreakRuleModal({ isOpen, onClose }: AutoBreakRuleMod
             </p>
             <p style={{ fontSize: 15, fontWeight: 400, color: '#334155', margin: '8px 0 0', lineHeight: 1.55, letterSpacing: '-0.035em' }}>
               • 파트: 30분 휴게
+            </p>
+            <p style={{ fontSize: 15, fontWeight: 400, color: '#334155', margin: '8px 0 0', lineHeight: 1.55, letterSpacing: '-0.035em' }}>
+              • 미성년자: 연속 150분(2시간 30분) 휴게
             </p>
           </div>
 

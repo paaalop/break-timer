@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Header from '@/components/layout/Header';
 import BreakWarningBanner from '@/components/scheduler/BreakWarningBanner';
 import AutoBreakRuleModal from '@/components/scheduler/AutoBreakRuleModal';
+import TimeWheelPickerModal from '@/components/ui/TimeWheelPickerModal';
 import { useScheduleStore } from '@/store/useScheduleStore';
 import { useEmployeeStore } from '@/store/useEmployeeStore';
 import { toMinutes, toTimeStr } from '@/lib/autoBreakAlgo';
@@ -11,8 +12,9 @@ import { getWeekStartFromDate, formatDateToYYYYMMDD, formatDayLabel } from '@/li
 
 export default function AutoBreakPage() {
   const [selectedDate, setSelectedDate] = useState(() => formatDateToYYYYMMDD(new Date()));
-  const [breakStartRef, setBreakStartRef] = useState('13:30');
+  const [breakStartRef, setBreakStartRef] = useState('14:00');
   const [showRuleModal, setShowRuleModal] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   const {
     schedules,
@@ -125,101 +127,163 @@ export default function AutoBreakPage() {
   }, [daySchedules, breakStartRef]);
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--color-bg)' }}>
-      <Header />
-      <main className="max-w-[1400px] mx-auto px-3 pt-3 pb-20 sm:px-8 md:px-10 sm:pt-4 sm:pb-24">
-        {/* 페이지 헤더: 제목 좌측 여백은 pl-2(8px) + px-3(12px) = 20px로 그대로 유지 */}
-        <div className="pl-2 sm:pl-0" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, minHeight: 32 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--color-neutral-dark)', margin: 0 }}>
-            휴게 시간 배치
-          </h1>
+    <div style={{ minHeight: '100vh', background: '#EFECE6' }}>
+      <Header
+        rightAction={
           <button
             onClick={() => setShowRuleModal(true)}
             title="자동 배치 적용 규칙 안내"
-            aria-label="자동 배치 규칙 안내"
+            aria-label="도움말"
             style={{
-              width: 22,
-              height: 22,
-              borderRadius: '50%',
-              border: '1.5px solid var(--color-primary)',
-              background: 'transparent',
+              padding: '5px 12px',
+              fontSize: 12,
+              fontWeight: 600,
+              border: 'none',
+              borderRadius: 6,
+              background: '#FFFFFF',
               color: 'var(--color-primary)',
+              cursor: 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 13,
-              fontWeight: 800,
-              cursor: 'pointer',
-              padding: 0,
-              lineHeight: 1,
+              gap: 4,
+              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+              transition: 'all 0.15s ease',
             }}
           >
-            i
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 16v-4" />
+              <path d="M12 8h.01" />
+            </svg>
+            <span>도움말</span>
           </button>
-        </div>
+        }
+      />
+      <main className="max-w-[1400px] mx-auto px-2 pt-2 pb-16 sm:px-4 md:px-6 sm:pt-3 sm:pb-20">
+        <h1 className="sr-only">휴게 시간 배치</h1>
 
-        {/* 컨트롤 패널 */}
+        {/* 컨트롤 패널 (검색 필터 - 보더라인 제거) */}
         <div
           style={{
-            marginBottom: 20,
-            paddingBottom: 16,
-            borderBottom: '1px solid var(--color-border)',
+            marginBottom: 12,
+            padding: '16px 20px',
+            background: '#FFFFFF',
+            borderRadius: 14,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 14,
           }}
         >
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-neutral-dark)' }}>
+          {/* 필터 항목 (제목과 입력값을 같은 행에 두고 양쪽 끝정렬, 밑줄 스타일) */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-y-4 md:gap-x-10">
+            {/* 날짜 */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-neutral-dark)', whiteSpace: 'nowrap' }}>
                 날짜
-              </label>
+              </span>
               <input
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                style={inputStyle}
+                style={underlineInputStyle}
               />
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-neutral-dark)' }}>
+
+            {/* 총 휴게 시작 (휠 다이얼 시간 피커 모달 연동) */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-neutral-dark)', whiteSpace: 'nowrap' }}>
                 총 휴게 시작
-              </label>
-              <input
-                type="time"
-                value={breakStartRef}
-                onChange={(e) => setBreakStartRef(e.target.value)}
-                style={inputStyle}
-              />
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowTimePicker(true)}
+                style={{
+                  ...underlineInputStyle,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <span>{breakStartRef}</span>
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#777"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+              </button>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-neutral-dark)' }}>
+
+            {/* 최소 근무 인원 (앞에 0이 붙지 않도록 처리) */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-neutral-dark)', whiteSpace: 'nowrap' }}>
                 최소 근무 인원
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="10"
-                value={minTotalStaff}
-                onChange={(e) => setMinTotalStaff(Number(e.target.value))}
-                style={{ ...inputStyle, width: 90 }}
-              />
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={minTotalStaff === 0 ? '' : minTotalStaff}
+                  onChange={(e) => {
+                    const rawVal = e.target.value.replace(/[^0-9]/g, '').replace(/^0+/, '');
+                    const num = rawVal === '' ? 0 : parseInt(rawVal, 10);
+                    setMinTotalStaff(num);
+                  }}
+                  onBlur={() => {
+                    if (minTotalStaff < 1) {
+                      setMinTotalStaff(1);
+                    }
+                  }}
+                  style={{ ...underlineInputStyle, width: 44, textAlign: 'center' }}
+                />
+                <span style={{ fontSize: 13, fontWeight: 500, color: '#777' }}>명</span>
+              </div>
             </div>
-            <button
-              onClick={handleRunAutoBreak}
-              disabled={isLoading || daySchedules.length === 0}
-              style={{
-                padding: '7px 16px',
-                fontSize: 12,
-                background: 'var(--color-primary)',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 4,
-                fontWeight: 600,
-                cursor: isLoading || daySchedules.length === 0 ? 'not-allowed' : 'pointer',
-                opacity: isLoading || daySchedules.length === 0 ? 0.5 : 1,
-              }}
-            >
-              자동 배치
-            </button>
           </div>
+
+          {/* 자동 배치 버튼 (강조 CTA) */}
+          <button
+            onClick={handleRunAutoBreak}
+            disabled={isLoading || daySchedules.length === 0}
+            style={{
+              height: 42,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              fontSize: 14,
+              fontWeight: 700,
+              background: 'var(--color-primary)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 8,
+              cursor: isLoading || daySchedules.length === 0 ? 'not-allowed' : 'pointer',
+              opacity: isLoading || daySchedules.length === 0 ? 0.5 : 1,
+              transition: 'all 0.15s ease',
+              width: '100%',
+              marginTop: 2,
+            }}
+          >
+            <span>휴게 자동 배치</span>
+          </button>
         </div>
 
         {/* 에러 배너 */}
@@ -246,165 +310,215 @@ export default function AutoBreakPage() {
           </div>
         )}
 
-        {/* DayCard 양식의 휴게시간표 카드 컨테이너 */}
+        {/* 휴게시간표 컨텐츠 (보더라인 제거) */}
         <div
           style={{
-            border: '1px solid var(--color-border)',
-            borderRadius: 4,
-            background: 'var(--color-surface)',
+            background: '#FFFFFF',
+            borderRadius: 14,
+            padding: '18px 20px 22px',
             display: 'flex',
             flexDirection: 'column',
-            overflow: 'hidden',
+            gap: 14,
           }}
         >
-          {/* 카드 헤더 바 (DayCard 양식) */}
+          {/* 상단 요약 바 */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: '6px 10px',
-              background: 'var(--color-bg)',
-              borderBottom: '1px solid var(--color-border)',
+              paddingBottom: 10,
+              borderBottom: '1px solid #EFECE6',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <span
                 style={{
-                  fontSize: 12,
-                  fontWeight: 600,
+                  fontSize: 15,
+                  fontWeight: 700,
                   color: isWeekend ? '#C0392B' : 'var(--color-neutral-dark)',
+                  letterSpacing: '-0.02em',
                 }}
               >
                 {formatDayLabel(selectedDate)}
               </span>
-              <span style={{ fontSize: 12, color: 'var(--color-neutral-dark)' }}>
-                {`휴게 시간표 (${breakStartRef}~)`}
-              </span>
+
+              {/* 범례 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: '#DC2626',
+                    background: '#FEE2E2',
+                    padding: '2px 8px',
+                    borderRadius: 4,
+                  }}
+                >
+                  휴게
+                </span>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: '#666',
+                    background: '#F0EEE9',
+                    padding: '2px 8px',
+                    borderRadius: 4,
+                  }}
+                >
+                  근무
+                </span>
+              </div>
             </div>
-            <span style={{ fontSize: 11, color: '#888' }}>
-              {`총 ${daySchedules.length}명 근무`}
+            <span
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: 'var(--color-primary)',
+                letterSpacing: '-0.02em',
+              }}
+            >
+              {`총 ${daySchedules.length}명`}
             </span>
           </div>
 
-          {/* 테이블 그리드 (체크박스 제외, 3개 칼럼) */}
-          <div style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-            <table
-              style={{
-                width: '100%',
-                tableLayout: 'fixed',
-                borderCollapse: 'collapse',
-                background: 'var(--color-surface)',
-              }}
-            >
-              <thead>
-                <tr>
-                  <th style={{ ...thStyle, width: '22%' }}>시간</th>
-                  <th style={{ ...thStyle, width: '38%' }}>휴게 직원</th>
-                  <th style={{ ...thStyle, width: '40%', borderRight: 'none' }}>근무 직원</th>
-                </tr>
-              </thead>
-              <tbody>
-                {timeTable.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={3}
-                      style={{
-                        padding: '32px 0',
-                        textAlign: 'center',
-                        color: '#bbb',
-                        fontSize: 12,
-                        borderBottom: 'none',
-                      }}
-                    >
-                      해당 날짜에 등록된 근무 스케줄이 없습니다.
-                    </td>
-                  </tr>
-                ) : (
-                  timeTable.map((row, idx) => {
-                    const isWarning = row.totalWorking < minTotalStaff;
-                    return (
-                      <tr key={idx} style={{ transition: 'background 0.15s ease' }}>
-                        {/* 시간 */}
-                        <td style={{ ...tdStyle, fontWeight: 600, color: 'var(--color-neutral-dark)' }}>
-                          {row.timeStr}
-                        </td>
+          {/* 슬롯 목록 (슬롯별 박스화 해제, 보더라인으로만 구분) */}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {timeTable.length === 0 ? (
+              <div
+                style={{
+                  padding: '48px 16px',
+                  textAlign: 'center',
+                  color: '#999',
+                  fontSize: 14,
+                  background: '#FAF9F6',
+                  borderRadius: 12,
+                  border: '1px dashed var(--color-border)',
+                }}
+              >
+                해당 날짜에 등록된 근무 스케줄이 없습니다.
+              </div>
+            ) : (
+              timeTable.map((slot, idx) => {
+                const isWarning = slot.totalWorking < minTotalStaff;
+                const isLast = idx === timeTable.length - 1;
+                return (
+                  <div
+                    key={idx}
+                    style={{
+                      padding: '10px 0',
+                      borderBottom: isLast ? 'none' : '1px solid #EFECE6',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 8,
+                    }}
+                  >
+                    {/* 1행: 시간 */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 700,
+                          color: '#777',
+                          letterSpacing: '-0.01em',
+                        }}
+                      >
+                        {slot.timeStr.replace('~', ' ~ ')}
+                      </span>
+                      {isWarning && (
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            color: '#DC2626',
+                            background: '#FEE2E2',
+                            padding: '1px 6px',
+                            borderRadius: 4,
+                            letterSpacing: '-0.01em',
+                          }}
+                        >
+                          최소인원 미달 ({slot.totalWorking}/{minTotalStaff}명)
+                        </span>
+                      )}
+                    </div>
 
-                        {/* 휴게 직원 */}
-                        <td style={tdStyle}>
-                          {row.onBreak.length > 0 ? (
-                            <span>
-                              <strong style={{ color: '#C0392B' }}>{row.onBreak.join(', ')}</strong>
-                              <span style={{ fontSize: 11, color: '#888', marginLeft: 4 }}>
-                                ({row.totalBreak}명)
-                              </span>
-                            </span>
-                          ) : (
-                            <span style={{ color: '#bbb' }}>-</span>
-                          )}
-                        </td>
-
-                        {/* 근무 직원 */}
-                        <td style={{ ...tdStyle, borderRight: 'none' }}>
+                    {/* 휴게 직원 뱃지 행 (테두리 없음) */}
+                    {slot.onBreak.length > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, lineHeight: 1.5 }}>
+                        {slot.onBreak.map((name, i) => (
                           <span
+                            key={i}
                             style={{
-                              color: isWarning ? '#C0392B' : 'var(--color-neutral-dark)',
-                              fontWeight: isWarning ? 600 : 400,
+                              background: '#FEE2E2',
+                              color: '#DC2626',
+                              fontWeight: 700,
+                              fontSize: 14,
+                              padding: '3px 9px',
+                              borderRadius: 6,
                             }}
                           >
-                            {row.working.join(', ') || '-'}
+                            {name}
                           </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* 근무 직원 뱃지 행 (테두리 없음) */}
+                    <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, lineHeight: 1.5 }}>
+                      {slot.working.length > 0 ? (
+                        slot.working.map((name, i) => (
                           <span
+                            key={i}
                             style={{
-                              fontSize: 11,
-                              color: isWarning ? '#C0392B' : '#888',
-                              marginLeft: 4,
+                              background: '#F0EEE9',
+                              color: 'var(--color-neutral-dark)',
+                              fontWeight: 600,
+                              fontSize: 14,
+                              padding: '3px 9px',
+                              borderRadius: 6,
                             }}
                           >
-                            ({row.totalWorking}명)
+                            {name}
                           </span>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                        ))
+                      ) : (
+                        <span style={{ fontSize: 13, color: '#9CA3AF' }}>없음</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
         <AutoBreakRuleModal isOpen={showRuleModal} onClose={() => setShowRuleModal(false)} />
+        <TimeWheelPickerModal
+          isOpen={showTimePicker}
+          onClose={() => setShowTimePicker(false)}
+          value={breakStartRef}
+          onConfirm={(time) => setBreakStartRef(time)}
+          title="휴게 시작 시간을 알려주세요"
+          minTime="10:30"
+          maxTime="21:30"
+        />
       </main>
     </div>
   );
 }
 
-const inputStyle: React.CSSProperties = {
-  padding: '6px 10px',
-  border: '1px solid var(--color-border)',
-  borderRadius: 4,
-  fontSize: 13,
-  outline: 'none',
-  background: 'var(--color-surface)',
-  color: 'var(--color-neutral-dark)',
-};
-
-const thStyle: React.CSSProperties = {
+const underlineInputStyle: React.CSSProperties = {
   padding: '6px 4px',
-  fontSize: 11,
+  fontSize: 14,
   fontWeight: 600,
-  textAlign: 'center',
-  color: 'var(--color-primary)',
-  borderBottom: '1px solid var(--color-border)',
-  borderRight: '1px solid var(--color-border)',
-  background: '#FAFAFA',
-  whiteSpace: 'nowrap',
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: '7px 4px',
-  fontSize: 12,
-  textAlign: 'center',
-  borderBottom: '1px solid var(--color-border)',
-  borderRight: '1px solid var(--color-border)',
-  verticalAlign: 'middle',
+  border: 'none',
+  borderBottom: '1.5px solid #C8C2B8',
+  borderRadius: 0,
+  background: 'transparent',
+  color: 'var(--color-neutral-dark)',
+  textAlign: 'right',
+  outline: 'none',
+  boxSizing: 'border-box',
+  letterSpacing: '-0.01em',
+  transition: 'border-color 0.15s ease',
 };

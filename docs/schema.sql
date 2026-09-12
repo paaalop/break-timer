@@ -5,6 +5,7 @@ CREATE TABLE employees (
     available_roles TEXT[] NOT NULL,
     available_days INTEGER[] NOT NULL,
     default_shift_types TEXT[] NOT NULL,
+    is_minor BOOLEAN DEFAULT false NOT NULL,
     is_deleted BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

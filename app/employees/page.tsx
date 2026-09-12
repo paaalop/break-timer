@@ -14,6 +14,7 @@ export default function EmployeesPage() {
     fetchEmployees,
     addEmployee,
     updateEmployee,
+    softDeleteEmployee,
     softDeleteEmployees,
   } = useEmployeeStore();
 
@@ -41,6 +42,11 @@ export default function EmployeesPage() {
 
   const handleUpdate = async (id: string, data: UpdateEmployeeInput) => {
     await updateEmployee(id, data);
+  };
+
+  const handleDeleteSingle = async (id: string) => {
+    await softDeleteEmployee(id);
+    setSelectedIds((prev) => prev.filter((item) => item !== id));
   };
 
   // 선택 토글 핸들러
@@ -72,20 +78,23 @@ export default function EmployeesPage() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--color-bg)' }}>
+    <div style={{ minHeight: '100vh', background: '#FFFFFF' }}>
       <Header />
 
-      <main className="max-w-[1400px] mx-auto px-3 pt-3 pb-20 sm:px-8 md:px-10 sm:pt-4 sm:pb-24">
-        {/* 페이지 헤더: 제목 좌측 여백은 pl-2(8px) + px-3(12px) = 20px로 그대로 유지 */}
-        <div className="pl-2 sm:pl-0" style={{ marginBottom: 16, minHeight: 32, display: 'flex', alignItems: 'center' }}>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--color-neutral-dark)', margin: 0 }}>
-            직원 관리
-          </h1>
+      <main className="max-w-[1400px] mx-auto px-0 pt-3 pb-20 sm:px-8 md:px-10 sm:pt-4 sm:pb-24">
+        {/* 페이지 헤더 */}
+        <div className="px-6 sm:px-4" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', minHeight: 36 }}>
+            <h1 style={{ fontSize: 20, fontWeight: 700, lineHeight: '28px', color: 'var(--color-neutral-dark)', margin: 0 }}>
+              직원 관리
+            </h1>
+          </div>
         </div>
 
         {/* 에러 배너 */}
         {error && (
           <div
+            className="mx-4 sm:mx-0"
             style={{
               border: '1px solid #C0392B',
               background: '#FDF2F1',
@@ -109,6 +118,7 @@ export default function EmployeesPage() {
           isAdding={isAdding}
           onOpenAdd={handleOpenAdd}
           onDeleteSelected={() => setShowDeleteConfirm(true)}
+          onDeleteSingle={handleDeleteSingle}
           onCancelAdd={handleCancelAdd}
           onSaveNew={handleSaveNew}
           onUpdate={handleUpdate}

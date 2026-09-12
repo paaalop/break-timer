@@ -10,7 +10,13 @@ const NAV_TABS = [
   { label: '휴게 배치', href: '/auto-break' },
 ] as const;
 
-export default function Header() {
+interface HeaderProps {
+  isDark?: boolean;
+  hideSignOut?: boolean;
+  rightAction?: React.ReactNode;
+}
+
+export default function Header({ isDark = false, hideSignOut = false, rightAction }: HeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { signOut } = useAuthStore();
@@ -20,44 +26,47 @@ export default function Header() {
     router.replace('/login');
   };
 
+  const hasTopBar = !hideSignOut || Boolean(rightAction);
+
   return (
     <>
-      {/* 우측 상단 단순 텍스트 로그아웃 (페이지 최대 폭 및 좌우 여백과 일치) */}
-      <div
-        className="max-w-[1400px] mx-auto px-5 sm:px-8 md:px-10 relative w-full pointer-events-none"
-        style={{ height: 0, overflow: 'visible' }}
-      >
+      {/* 우측 상단 액션 바 (로그아웃 / 커스텀 액션 등 - 독립된 행으로 높이 확보) */}
+      {hasTopBar && (
         <div
-          className="absolute top-3 right-5 sm:right-8 md:right-10 pointer-events-auto"
-          style={{ zIndex: 50 }}
+          className="max-w-[1400px] mx-auto px-4 sm:px-8 md:px-10 flex items-center justify-end"
+          style={{ height: 36, paddingTop: 8 }}
         >
-          <button
-            onClick={handleSignOut}
-            title="로그아웃"
-            style={{
-              padding: 0,
-              fontSize: 12,
-              fontWeight: 400,
-              border: 'none',
-              background: 'transparent',
-              color: '#888888',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              letterSpacing: '-0.02em',
-              textDecoration: 'none',
-              transition: 'color 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = '#222222';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = '#888888';
-            }}
-          >
-            로그아웃
-          </button>
+          {rightAction ? (
+            rightAction
+          ) : !hideSignOut ? (
+            <button
+              onClick={handleSignOut}
+              title="로그아웃"
+              style={{
+                padding: '4px 6px',
+                fontSize: 12,
+                fontWeight: 400,
+                border: 'none',
+                background: 'transparent',
+                color: isDark ? 'rgba(255, 255, 255, 0.7)' : '#888888',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                letterSpacing: '-0.02em',
+                textDecoration: 'none',
+                transition: 'color 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = isDark ? '#FFFFFF' : '#222222';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = isDark ? 'rgba(255, 255, 255, 0.7)' : '#888888';
+              }}
+            >
+              로그아웃
+            </button>
+          ) : null}
         </div>
-      </div>
+      )}
 
       {/* 하단 중앙 정렬 내비게이션 바 */}
       <nav

@@ -48,6 +48,7 @@ export default function EmployeeForm({ employee, onSave, onCancel, isLoading }: 
   const [roles, setRoles] = useState<Role[]>([]);
   const [days, setDays] = useState<DayOfWeek[]>([]);
   const [shifts, setShifts] = useState<ShiftType[]>(['open']);
+  const [isMinor, setIsMinor] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -56,11 +57,13 @@ export default function EmployeeForm({ employee, onSave, onCancel, isLoading }: 
       setRoles([...employee.available_roles]);
       setDays([...employee.available_days]);
       setShifts(employee.default_shift_types.length ? [employee.default_shift_types[0]] : ['open']);
+      setIsMinor(employee.is_minor ?? false);
     } else {
       setName('');
       setRoles([]);
       setDays([]);
       setShifts(['open']);
+      setIsMinor(false);
     }
     setError(null);
   }, [employee]);
@@ -92,12 +95,14 @@ export default function EmployeeForm({ employee, onSave, onCancel, isLoading }: 
         available_roles: roles,
         available_days: days,
         default_shift_types: shifts,
+        is_minor: isMinor,
       });
       if (!employee) {
         setName('');
         setRoles([]);
         setDays([]);
         setShifts([]);
+        setIsMinor(false);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : '저장 실패');
@@ -139,7 +144,28 @@ export default function EmployeeForm({ employee, onSave, onCancel, isLoading }: 
       </div>
 
       <div>
-        <span style={fieldLabel}>가능 직무</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+          <span style={{ ...fieldLabel, marginBottom: 0 }}>가능 직무</span>
+          <button
+            type="button"
+            onClick={() => setIsMinor(!isMinor)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '3px 8px',
+              borderRadius: 16,
+              border: isMinor ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
+              background: isMinor ? 'var(--color-primary)' : 'transparent',
+              color: isMinor ? '#FFFFFF' : 'var(--color-neutral-dark)',
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            미성년자 {isMinor ? 'ON' : 'OFF'}
+          </button>
+        </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {ROLE_OPTIONS.map((opt) => (
             <ToggleButton
@@ -151,6 +177,11 @@ export default function EmployeeForm({ employee, onSave, onCancel, isLoading }: 
             />
           ))}
         </div>
+        {isMinor && (
+          <p style={{ fontSize: 11, color: 'var(--color-primary)', margin: '6px 0 0', fontWeight: 500 }}>
+            * 미성년자는 휴게시간이 2시간 30분(150분)으로 계산됩니다.
+          </p>
+        )}
       </div>
 
       <div>

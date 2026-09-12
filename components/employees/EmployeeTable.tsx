@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import type { Employee, Role, DayOfWeek, ShiftType, CreateEmployeeInput, UpdateEmployeeInput } from '@/types';
 import { ROLE_OPTIONS, ROLE_LABELS, DAY_OPTIONS, DAY_LABELS, SHIFT_OPTIONS, SHIFT_LABELS } from '@/lib/constants';
 import MultiSelectDropdown from '@/components/ui/MultiSelectDropdown';
 import Badge from '@/components/ui/Badge';
 import Input from '@/components/ui/Input';
+import BottomSheet from '@/components/ui/BottomSheet';
 
 // ─── 뱃지 색상 ────────────────────────────────────────────────────────────────
 const SHIFT_TEXT_COLOR: Record<ShiftType, string> = {
@@ -86,66 +87,12 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
   const [shiftType, setShiftType] = useState<ShiftType>(
     emp?.default_shift_types[0] ?? 'open'
   );
+  const [isMinor, setIsMinor] = useState<boolean>(emp?.is_minor ?? false);
   const [nameError, setNameError] = useState<string | null>(null);
   const [roleError, setRoleError] = useState<string | null>(null);
   const [dayError, setDayError] = useState<string | null>(null);
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-
-  // ── 드래그 상태 ──────────────────────────────────────────────────────────────
-  const dragStartY = useRef(0);
-  const [dragY, setDragY] = useState(0);
-  const [dragging, setDragging] = useState(false);
-
-  // ── 스크롤 잠금 + 뒤로가기로 닫기 ──────────────────────────────────────────
-  useEffect(() => {
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    const stateId = Date.now();
-    window.history.pushState({ employeeSheetId: stateId }, '');
-
-    let active = false;
-    const tid = setTimeout(() => { active = true; }, 150);
-
-    const handlePop = (e: PopStateEvent) => {
-      if (active && (!e.state || e.state.employeeSheetId !== stateId)) {
-        onClose();
-      }
-    };
-    window.addEventListener('popstate', handlePop);
-
-    return () => {
-      clearTimeout(tid);
-      document.body.style.overflow = prevOverflow;
-      window.removeEventListener('popstate', handlePop);
-      
-      if (window.history.state?.employeeSheetId === stateId) {
-        window.history.back();
-      }
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ── 드래그 핸들러 ──────────────────────────────────────────────────────────
-  const handleTouchStart = (e: React.TouchEvent) => {
-    dragStartY.current = e.touches[0].clientY;
-    setDragging(true);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    const delta = e.touches[0].clientY - dragStartY.current;
-    if (delta > 0) setDragY(delta);
-  };
-
-  const handleTouchEnd = () => {
-    setDragging(false);
-    if (dragY > 130) {
-      onClose();
-    } else {
-      setDragY(0);
-    }
-  };
 
   // ── 폼 핸들러 ──────────────────────────────────────────────────────────────
   const toggleRole = (r: Role) => {
@@ -190,6 +137,7 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
         available_roles: getSortedRoles([...roles]),
         available_days: [...days] as DayOfWeek[],
         default_shift_types: [shiftType],
+        is_minor: isMinor,
       });
       onClose();
     } catch (err: any) {
@@ -210,45 +158,30 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
     letterSpacing: '-0.02em',
   };
 
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 300,
-        display: 'flex',
-        alignItems: 'flex-end',
-        justifyContent: 'center',
-        background: `rgba(0,0,0,${Math.max(0, 0.4 - dragY / 600)})`,
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          width: '100%',
-          maxWidth: 480,
-          maxHeight: '92vh',
-          overflowY: dragging ? 'hidden' : 'auto',
-          background: 'var(--color-surface)',
-          borderRadius: '18px 18px 0 0',
-          padding: '10px 20px 36px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 20,
-          boxSizing: 'border-box',
-          transform: `translateY(${dragY}px)`,
-          transition: dragging ? 'none' : 'transform 0.3s cubic-bezier(0.32,0.72,0,1)',
-        }}
-        onClick={(e) => e.stopPropagation()}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      >
-        {/* 드래그 핸들 */}
-        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 2, paddingBottom: 2, cursor: 'grab' }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--color-border)' }} />
-        </div>
+  const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
+  const handleConfirmDelete = async () => {
+    if (!onDelete) return;
+    setIsDeleting(true);
+    try {
+      await onDelete();
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirmDialog(false);
+    }
+  };
+
+  return (
+    <>
+      <BottomSheet
+        onClose={onClose}
+        maxWidth={480}
+        maxHeight="92vh"
+        padding="10px 20px 36px"
+        gap={20}
+        historyKey="employeeSheet"
+      >
         {/* 헤더: 제목 + (수정 모드일 때만 우상단 직원 삭제) */}
         <div
           style={{
@@ -265,8 +198,8 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
           {isEdit && onDelete && (
             <button
               type="button"
-              onClick={onDelete}
-              disabled={isSaving}
+              onClick={() => setShowDeleteConfirmDialog(true)}
+              disabled={isSaving || isDeleting}
               style={{
                 background: 'none',
                 border: 'none',
@@ -275,7 +208,7 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
                 color: '#C0392B',
                 fontSize: 13,
                 fontWeight: 600,
-                opacity: isSaving ? 0.4 : 1,
+                opacity: isSaving || isDeleting ? 0.4 : 1,
                 letterSpacing: '-0.02em',
               }}
             >
@@ -311,11 +244,73 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
           )}
         </div>
 
-        {/* 직무 (다중 선택: 분리된 토글 버튼 그리드) */}
+        {/* 직무 (다중 선택: 분리된 토글 버튼 그리드) 및 미성년자 토글 버튼 */}
         <div>
-          <label style={labelStyle}>
-            직무
-          </label>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 8,
+            }}
+          >
+            <label style={{ ...labelStyle, marginBottom: 0 }}>
+              직무
+            </label>
+            <button
+              type="button"
+              onClick={() => setIsMinor((prev) => !prev)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 7,
+                padding: '4px 8px',
+                borderRadius: 20,
+                border: isMinor ? '1px solid var(--color-primary)' : '1px solid #D5D1C9',
+                background: isMinor ? '#F5F0EB' : '#FAFAFA',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              title="미성년자 여부 (휴게시간 2시간 30분 적용)"
+              aria-pressed={isMinor}
+            >
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: isMinor ? 700 : 500,
+                  color: isMinor ? 'var(--color-primary)' : '#777777',
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                미성년자
+              </span>
+              <div
+                style={{
+                  width: 28,
+                  height: 16,
+                  borderRadius: 8,
+                  background: isMinor ? 'var(--color-primary)' : '#D5D1C9',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '2px',
+                  boxSizing: 'border-box',
+                  transition: 'background-color 0.18s ease',
+                }}
+              >
+                <div
+                  style={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: '50%',
+                    background: '#FFFFFF',
+                    transform: isMinor ? 'translateX(12px)' : 'translateX(0px)',
+                    transition: 'transform 0.18s ease',
+                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
+                  }}
+                />
+              </div>
+            </button>
+          </div>
           <div
             style={{
               display: 'grid',
@@ -352,6 +347,11 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
               );
             })}
           </div>
+          {isMinor && (
+            <p style={{ fontSize: 11, color: 'var(--color-primary)', margin: '6px 0 0', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span>ℹ️</span> 미성년자: 휴게시간 2시간 30분(150분)이 자동 적용됩니다.
+            </p>
+          )}
           {roleError && (
             <p style={{ fontSize: 12, color: '#C0392B', margin: '6px 0 0', fontWeight: 500 }}>
               {roleError}
@@ -479,8 +479,88 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
         >
           {isSaving ? (isEdit ? '저장 중...' : '등록 중...') : (isEdit ? '변경사항 저장' : '직원 등록')}
         </button>
-      </div>
-    </div>
+      </BottomSheet>
+
+      {/* 단건 삭제 확인 다이얼로그 */}
+      {showDeleteConfirmDialog && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.45)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 600,
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowDeleteConfirmDialog(false);
+          }}
+        >
+          <div
+            style={{
+              background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 10,
+              padding: '20px 22px',
+              maxWidth: 320,
+              width: '88%',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 8px', color: 'var(--color-neutral-dark)' }}>
+              직원 삭제
+            </h3>
+            <p style={{ fontSize: 13, color: '#555', margin: '0 0 16px', lineHeight: 1.5 }}>
+              <strong>{name || '해당'}</strong> 직원을 정말 삭제하시겠습니까?
+              <br />
+              <span style={{ fontSize: 11, color: '#999' }}>
+                기존에 배정된 스케줄 기록은 유지됩니다.
+              </span>
+            </p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirmDialog(false)}
+                disabled={isDeleting}
+                style={{
+                  padding: '7px 14px',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 6,
+                  background: 'var(--color-surface)',
+                  color: 'var(--color-neutral-dark)',
+                  cursor: 'pointer',
+                }}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                style={{
+                  padding: '7px 14px',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  border: 'none',
+                  borderRadius: 6,
+                  background: '#C0392B',
+                  color: '#FFFFFF',
+                  cursor: isDeleting ? 'not-allowed' : 'pointer',
+                  opacity: isDeleting ? 0.6 : 1,
+                }}
+              >
+                {isDeleting ? '삭제 중...' : '삭제'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -528,6 +608,7 @@ interface EmployeeTableProps {
   isAdding: boolean;
   onOpenAdd: () => void;
   onDeleteSelected: () => void;
+  onDeleteSingle?: (id: string) => Promise<void>;
   onCancelAdd: () => void;
   onSaveNew: (data: CreateEmployeeInput) => Promise<void>;
   onUpdate: (id: string, data: UpdateEmployeeInput) => Promise<void>;
@@ -543,6 +624,7 @@ export default function EmployeeTable({
   isAdding,
   onOpenAdd,
   onDeleteSelected,
+  onDeleteSingle,
   onCancelAdd,
   onSaveNew,
   onUpdate,
@@ -553,6 +635,7 @@ export default function EmployeeTable({
   const [newRoles, setNewRoles] = useState<Role[]>([]);
   const [newDays, setNewDays] = useState<DayOfWeek[]>([]);
   const [newShifts, setNewShifts] = useState<ShiftType[]>(['open']);
+  const [newIsMinor, setNewIsMinor] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [isSubmittingAdd, setIsSubmittingAdd] = useState(false);
 
@@ -562,6 +645,7 @@ export default function EmployeeTable({
   const [editRoles, setEditRoles] = useState<Role[]>([]);
   const [editDays, setEditDays] = useState<DayOfWeek[]>([]);
   const [editShifts, setEditShifts] = useState<ShiftType[]>(['open']);
+  const [editIsMinor, setEditIsMinor] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
 
@@ -574,6 +658,7 @@ export default function EmployeeTable({
     setNewRoles([]);
     setNewDays([]);
     setNewShifts(['open']);
+    setNewIsMinor(false);
     setAddError(null);
   };
 
@@ -589,6 +674,7 @@ export default function EmployeeTable({
         available_roles: newRoles,
         available_days: newDays,
         default_shift_types: newShifts,
+        is_minor: newIsMinor,
       });
       resetNewForm();
     } catch (err: any) {
@@ -605,6 +691,7 @@ export default function EmployeeTable({
     setEditRoles(emp.available_roles.filter((r): r is Role => r in ROLE_LABELS));
     setEditDays([...emp.available_days]);
     setEditShifts(emp.default_shift_types.length ? [emp.default_shift_types[0]] : ['open']);
+    setEditIsMinor(emp.is_minor ?? false);
     setEditError(null);
   };
 
@@ -625,6 +712,7 @@ export default function EmployeeTable({
         available_roles: editRoles,
         available_days: editDays,
         default_shift_types: editShifts,
+        is_minor: editIsMinor,
       });
       setEditingId(null);
     } catch (err: any) {
@@ -634,19 +722,24 @@ export default function EmployeeTable({
     }
   };
 
-  // 모바일 시트에서 삭제 (단건)
-  const handleSheetDelete = () => {
+  // 모바일 시트에서 삭제 (단건 삭제)
+  const handleSheetDelete = async () => {
     if (!sheetEmp) return;
-    onToggleSelectOne(sheetEmp.id);
+    const targetId = sheetEmp.id;
     setSheetEmp(null);
-    // 삭제 확인은 page.tsx의 모달이 처리하므로 선택 후 닫기
-    // (page.tsx에서 selectedIds가 있을 때 삭제 버튼을 누르면 모달 뜸)
-    onDeleteSelected();
+    if (onDeleteSingle) {
+      await onDeleteSingle(targetId);
+    }
   };
 
-  const isAllSelected = employees.length > 0 && employees.every((emp) => selectedIds.includes(emp.id));
+  // 이름 오름차순 (가나다순) 정렬
+  const sortedEmployees = useMemo(() => {
+    return [...employees].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+  }, [employees]);
 
-  const filteredEmployees = employees.filter((e) =>
+  const isAllSelected = sortedEmployees.length > 0 && sortedEmployees.every((emp) => selectedIds.includes(emp.id));
+
+  const filteredEmployees = sortedEmployees.filter((e) =>
     e.name.includes(mobileQuery.trim())
   );
 
@@ -695,9 +788,33 @@ export default function EmployeeTable({
           padding: '2px 0 10px',
         }}
       >
-        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-neutral-dark)', letterSpacing: '-0.02em' }}>
-          {`총 ${employees.length}명`}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-neutral-dark)', letterSpacing: '-0.02em' }}>
+            {`총 ${employees.length}명`}
+          </span>
+          {selectedIds.length > 0 && (
+            <button
+              type="button"
+              onClick={onDeleteSelected}
+              style={{
+                height: 26,
+                padding: '0 10px',
+                fontSize: 11,
+                fontWeight: 600,
+                background: '#FDF2F1',
+                color: '#C0392B',
+                border: '1px solid #F8D7DA',
+                borderRadius: 4,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+              }}
+            >
+              선택 삭제 ({selectedIds.length}명)
+            </button>
+          )}
+        </div>
         <button
           onClick={onOpenAdd}
           disabled={isAdding}
@@ -723,7 +840,7 @@ export default function EmployeeTable({
       </div>
 
       {/* ── 2. 검색창 + 추가 버튼 (모바일 전용: 보더라인 제거 + 전체삭제 x버튼) ─── */}
-      <div className="flex md:hidden items-center gap-2 mb-3">
+      <div className="flex md:hidden items-center gap-2 mb-3 px-4 sm:px-0">
         <Input
           variant="borderless"
           value={mobileQuery}
@@ -733,6 +850,7 @@ export default function EmployeeTable({
           style={{
             padding: '10px 14px',
             fontSize: 13,
+            background: '#F0EDE8',
           }}
         />
         <button
@@ -772,7 +890,7 @@ export default function EmployeeTable({
         <div
           style={{
             background: 'var(--color-surface)',
-            borderRadius: 8,
+            borderRadius: 0,
             overflow: 'hidden',
           }}
         >
@@ -790,6 +908,24 @@ export default function EmployeeTable({
                 ? `검색 결과 ${filteredEmployees.length}명 / 총 ${employees.length}명`
                 : `총 ${employees.length}명`}
             </span>
+            {selectedIds.length > 0 && (
+              <button
+                type="button"
+                onClick={onDeleteSelected}
+                style={{
+                  padding: '3px 8px',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  background: '#FDF2F1',
+                  color: '#C0392B',
+                  border: '1px solid #F8D7DA',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                }}
+              >
+                선택 삭제 ({selectedIds.length}명)
+              </button>
+            )}
           </div>
 
           {filteredEmployees.length === 0 && !isAdding && (
@@ -835,6 +971,24 @@ export default function EmployeeTable({
                       <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-neutral-dark)', letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
                         {emp.name}
                       </span>
+                      {emp.is_minor && (
+                        <span
+                          style={{
+                            marginLeft: 6,
+                            padding: '1px 5px',
+                            fontSize: 10,
+                            fontWeight: 700,
+                            borderRadius: 4,
+                            background: '#FEF3C7',
+                            color: '#D97706',
+                            whiteSpace: 'nowrap',
+                            lineHeight: 1.3,
+                            flexShrink: 0,
+                          }}
+                        >
+                          미성년자
+                        </span>
+                      )}
                       {shiftType && (
                         <>
                           <span style={{ color: '#000000ff', margin: '0 5px', fontSize: 12, fontWeight: 700 }}>·</span>
@@ -974,6 +1128,15 @@ export default function EmployeeTable({
                       style={{ padding: '2px 0', fontSize: 12, fontWeight: 600, textAlign: 'center', background: 'transparent' }}
                       autoFocus
                     />
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, color: newIsMinor ? 'var(--color-primary)' : '#888', cursor: 'pointer', marginTop: 2 }}>
+                      <input
+                        type="checkbox"
+                        checked={newIsMinor}
+                        onChange={(e) => setNewIsMinor(e.target.checked)}
+                        style={{ margin: 0, width: 12, height: 12, cursor: 'pointer' }}
+                      />
+                      미성년자
+                    </label>
                   </td>
                   <td style={tdStyle}>
                     <MultiSelectDropdown options={ROLE_OPTIONS} selected={newRoles} onChange={setNewRoles} placeholder="직무" />
@@ -1006,7 +1169,7 @@ export default function EmployeeTable({
               )}
 
               {/* 기존 직원 행 */}
-              {employees.map((emp) => {
+              {sortedEmployees.map((emp) => {
                 const isEditing = editingId === emp.id;
 
                 if (isEditing) {
@@ -1045,6 +1208,15 @@ export default function EmployeeTable({
                           style={{ padding: '2px 0', fontSize: 12, fontWeight: 600, textAlign: 'center', background: 'transparent' }}
                           autoFocus
                         />
+                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, color: editIsMinor ? 'var(--color-primary)' : '#888', cursor: 'pointer', marginTop: 2 }}>
+                          <input
+                            type="checkbox"
+                            checked={editIsMinor}
+                            onChange={(e) => setEditIsMinor(e.target.checked)}
+                            style={{ margin: 0, width: 12, height: 12, cursor: 'pointer' }}
+                          />
+                          미성년자
+                        </label>
                       </td>
                       <td style={tdStyle}>
                         <MultiSelectDropdown options={ROLE_OPTIONS} selected={editRoles} onChange={setEditRoles} placeholder="직무" />
@@ -1084,7 +1256,27 @@ export default function EmployeeTable({
                         aria-label={`${emp.name} 선택`}
                       />
                     </td>
-                    <td style={{ ...tdStyle, fontWeight: 600, fontSize: 12 }}>{emp.name}</td>
+                    <td style={{ ...tdStyle, fontWeight: 600, fontSize: 12 }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
+                        <span>{emp.name}</span>
+                        {emp.is_minor && (
+                          <span
+                            style={{
+                              padding: '1px 4px',
+                              fontSize: 9,
+                              fontWeight: 700,
+                              borderRadius: 3,
+                              background: '#FEF3C7',
+                              color: '#D97706',
+                              whiteSpace: 'nowrap',
+                              lineHeight: 1.2,
+                            }}
+                          >
+                            미성년자
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td style={tdStyle}>
                       <span style={{ fontSize: 11, color: 'var(--color-neutral-dark)' }}>
                         {getSortedRoles(emp.available_roles).map((r) => ROLE_LABELS[r]).join(', ') || '-'}

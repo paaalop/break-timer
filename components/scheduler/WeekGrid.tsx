@@ -12,12 +12,13 @@ interface WeekGridProps {
   onBreakClick: (schedule: WorkSchedule) => void;
   onPrevWeek?: () => void;
   onNextWeek?: () => void;
+  emptyState?: React.ReactNode;
 }
 
 const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
 
 const WeekGrid = forwardRef<HTMLDivElement, WeekGridProps>(function WeekGrid(
-  { weekStart, schedules, employees, onBreakClick, onPrevWeek, onNextWeek },
+  { weekStart, schedules, employees, onBreakClick, onPrevWeek, onNextWeek, emptyState },
   ref
 ) {
   const dates = getWeekDates(weekStart);
@@ -39,7 +40,7 @@ const WeekGrid = forwardRef<HTMLDivElement, WeekGridProps>(function WeekGrid(
       {/* 1. 모바일 전용 UI (< md): [주 선택바 + 요일선택바 통합 카드] + [선택된 요일 카드 1개] */}
       <div className="block md:hidden">
         {/* 통합 네비게이터 (배경 없음, 플랫 스타일) */}
-        <div style={{ marginBottom: 12 }}>
+        <div className="px-3 sm:px-0" style={{ marginBottom: 12 }}>
           {/* 1단: 주 선택 — 화살표가 날짜 텍스트 바로 양옆에 위치 */}
           <div
             style={{
@@ -68,7 +69,7 @@ const WeekGrid = forwardRef<HTMLDivElement, WeekGridProps>(function WeekGrid(
             </button>
             <span
               style={{
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: 600,
                 color: 'var(--color-neutral-dark)',
                 letterSpacing: '-0.01em',
@@ -83,7 +84,7 @@ const WeekGrid = forwardRef<HTMLDivElement, WeekGridProps>(function WeekGrid(
                 border: 'none',
                 background: 'transparent',
                 color: '#999',
-                fontSize: 18,
+                fontSize: 20,
                 cursor: 'pointer',
                 padding: '2px 4px',
                 lineHeight: 1,
@@ -129,15 +130,15 @@ const WeekGrid = forwardRef<HTMLDivElement, WeekGridProps>(function WeekGrid(
                     color: isActive
                       ? 'var(--color-neutral-dark)'
                       : isWeekend
-                      ? '#C0392B'
-                      : '#999',
+                        ? '#C0392B'
+                        : '#999',
                     transition: 'color 0.12s ease, border-color 0.12s ease',
                   }}
                 >
                   {/* 요일 */}
                   <span
                     style={{
-                      fontSize: 10,
+                      fontSize: 11,
                       fontWeight: isActive ? 700 : 500,
                       lineHeight: 1.2,
                       marginBottom: 3,
@@ -148,7 +149,7 @@ const WeekGrid = forwardRef<HTMLDivElement, WeekGridProps>(function WeekGrid(
                   {/* 날짜 — 선택 시 볼드 */}
                   <span
                     style={{
-                      fontSize: 14,
+                      fontSize: 16,
                       fontWeight: isActive ? 800 : 500,
                       lineHeight: 1.2,
                       letterSpacing: '-0.02em',
@@ -159,20 +160,25 @@ const WeekGrid = forwardRef<HTMLDivElement, WeekGridProps>(function WeekGrid(
                   {/* 인원수 */}
                   <span
                     style={{
-                      fontSize: 10,
+                      fontSize: 11,
                       fontWeight: isActive ? 600 : 400,
                       marginTop: 3,
-                      opacity: isActive ? 1 : 0.45,
+                      opacity: dayScheduleCount > 0 ? (isActive ? 1 : 0.45) : 0,
                       lineHeight: 1.2,
+                      minHeight: 13,
+                      display: 'block',
                     }}
                   >
-                    {dayScheduleCount > 0 ? `${dayScheduleCount}명` : ''}
+                    {dayScheduleCount > 0 ? `${dayScheduleCount}명` : '\u00A0'}
                   </span>
                 </button>
               );
             })}
           </div>
         </div>
+
+        {/* 비어있는 주차 안내 카드 (주력 바로 아래 위치) */}
+        {emptyState}
 
         {/* 선택된 요일의 단일 카드 */}
         <DayCard
@@ -185,19 +191,22 @@ const WeekGrid = forwardRef<HTMLDivElement, WeekGridProps>(function WeekGrid(
       </div>
 
       {/* 2. 데스크톱 전용 UI (md: 이상): 3열 그리드로 7개 요일 전체 표시 */}
-      <div className="hidden md:grid md:grid-cols-3 gap-3">
-        {dates.map((date) => {
-          const daySchedules = schedules.filter((s) => s.work_date === date);
-          return (
-            <DayCard
-              key={date}
-              date={date}
-              schedules={daySchedules}
-              employees={employees}
-              onBreakClick={onBreakClick}
-            />
-          );
-        })}
+      <div className="hidden md:block">
+        {emptyState}
+        <div className="grid grid-cols-3 gap-3">
+          {dates.map((date) => {
+            const daySchedules = schedules.filter((s) => s.work_date === date);
+            return (
+              <DayCard
+                key={date}
+                date={date}
+                schedules={daySchedules}
+                employees={employees}
+                onBreakClick={onBreakClick}
+              />
+            );
+          })}
+        </div>
       </div>
     </div>
   );

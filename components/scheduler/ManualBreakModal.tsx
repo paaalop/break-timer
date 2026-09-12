@@ -11,8 +11,8 @@ interface ManualBreakModalProps {
 
 export default function ManualBreakModal({ schedule, onClose }: ManualBreakModalProps) {
   const { setManualBreak, error } = useScheduleStore();
-  const [start, setStart] = useState(schedule.break_start_time ?? '13:30');
-  const [end, setEnd] = useState(schedule.break_end_time ?? '14:30');
+  const [start, setStart] = useState(schedule.break_start_time ?? '14:00');
+  const [end, setEnd] = useState(schedule.break_end_time ?? '15:00');
   const [isSaving, setIsSaving] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
