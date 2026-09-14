@@ -72,7 +72,7 @@ const WeekGrid = forwardRef<HTMLDivElement, WeekGridProps>(function WeekGrid(
                 fontSize: 14,
                 fontWeight: 600,
                 color: 'var(--color-neutral-dark)',
-                letterSpacing: '-0.01em',
+                letterSpacing: '-0.02em',
               }}
             >
               {formatWeekRange(weekStart)}

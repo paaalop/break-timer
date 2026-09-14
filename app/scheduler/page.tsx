@@ -9,6 +9,7 @@ import ManualBreakModal from '@/components/scheduler/ManualBreakModal';
 import { useScheduleStore } from '@/store/useScheduleStore';
 import { useEmployeeStore } from '@/store/useEmployeeStore';
 import { shiftWeek, formatWeekRange } from '@/lib/weekUtils';
+import { useRefetchOnFocus } from '@/hooks/useRefetchOnFocus';
 import type { WorkSchedule } from '@/types';
 
 export default function SchedulerPage() {
@@ -39,6 +40,13 @@ export default function SchedulerPage() {
   useEffect(() => {
     fetchSchedules(selectedWeekStart);
   }, [selectedWeekStart, fetchSchedules]);
+
+  // 탭 복귀 / 창 포커스 시 조용히 최신 DB 상태로 동기화 (stale data 방지)
+  useRefetchOnFocus(
+    useCallback(() => {
+      fetchSchedules(selectedWeekStart, true);
+    }, [selectedWeekStart, fetchSchedules])
+  );
 
   const handlePrevWeek = useCallback(() => {
     setWeekStart(shiftWeek(selectedWeekStart, -1));
@@ -109,12 +117,12 @@ export default function SchedulerPage() {
                   fontWeight: 600,
                   border: 'none',
                   borderRadius: 6,
-                  background: '#F4EFEA',
+                  background: 'var(--color-muted-bg)',
                   color: 'var(--color-primary)',
                   cursor: 'pointer',
                   letterSpacing: '-0.02em',
                 }}
-                className="hover:bg-[#ECE6DE] transition-colors"
+                className="hover:bg-[var(--color-muted-bg-hover)] transition-colors"
               >
                 이미지 추출
               </button>

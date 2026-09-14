@@ -48,7 +48,7 @@ export default function Header({ isDark = false, hideSignOut = false, rightActio
                 fontWeight: 400,
                 border: 'none',
                 background: 'transparent',
-                color: isDark ? 'rgba(255, 255, 255, 0.7)' : '#888888',
+                color: isDark ? 'rgba(255, 255, 255, 0.7)' : 'var(--color-text-muted)',
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
                 letterSpacing: '-0.02em',
@@ -59,7 +59,7 @@ export default function Header({ isDark = false, hideSignOut = false, rightActio
                 e.currentTarget.style.color = isDark ? '#FFFFFF' : '#222222';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.color = isDark ? 'rgba(255, 255, 255, 0.7)' : '#888888';
+                e.currentTarget.style.color = isDark ? 'rgba(255, 255, 255, 0.7)' : 'var(--color-text-muted)';
               }}
             >
               로그아웃

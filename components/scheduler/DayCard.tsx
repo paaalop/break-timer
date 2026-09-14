@@ -2,18 +2,11 @@
 
 import { useState, useMemo } from 'react';
 import type { WorkSchedule, Employee, ShiftType } from '@/types';
-import { SHIFT_DEFAULTS, SHIFT_LABELS, ROLE_LABELS } from '@/lib/constants';
+import { SHIFT_DEFAULTS, SHIFT_LABELS, ROLE_LABELS, SHIFT_TEXT_COLOR } from '@/lib/constants';
 import { formatDayLabel } from '@/lib/weekUtils';
 import { useScheduleStore } from '@/store/useScheduleStore';
 import EmployeeRow from './EmployeeRow';
 import BottomSheet from '@/components/ui/BottomSheet';
-
-const SHIFT_TEXT_COLOR: Record<ShiftType, string> = {
-  open: '#D97706',
-  close: '#2563EB',
-  oma: '#DC2626',
-  part: '#78716C',
-};
 
 interface DayCardProps {
   date: string;
@@ -70,26 +63,27 @@ export default function DayCard({ date, schedules, employees }: DayCardProps) {
     );
   };
 
-  const handleAddEmployee = async (employee: Employee) => {
+  const handleAddEmployees = async (selectedEmployees: Employee[]) => {
+    if (selectedEmployees.length === 0) return;
     setIsAdding(true);
 
-    const defaultShift: ShiftType =
-      (employee.default_shift_types[0] as ShiftType | undefined) ?? 'open';
-
-    const defaults = SHIFT_DEFAULTS[defaultShift];
-    const startTime = defaults.start;
-    const endTime = defaults.end;
-
     try {
-      await upsertSchedule({
-        employee_id: employee.id,
-        work_date: date,
-        shift_type: defaultShift,
-        start_time: startTime,
-        end_time: endTime,
-        break_start_time: null,
-        break_end_time: null,
-      });
+      await Promise.all(
+        selectedEmployees.map((employee) => {
+          const defaultShift: ShiftType =
+            (employee.default_shift_types[0] as ShiftType | undefined) ?? 'open';
+          const defaults = SHIFT_DEFAULTS[defaultShift];
+          return upsertSchedule({
+            employee_id: employee.id,
+            work_date: date,
+            shift_type: defaultShift,
+            start_time: defaults.start,
+            end_time: defaults.end,
+            break_start_time: null,
+            break_end_time: null,
+          });
+        })
+      );
     } finally {
       setIsAdding(false);
     }
@@ -99,6 +93,14 @@ export default function DayCard({ date, schedules, employees }: DayCardProps) {
     if (selectedScheduleIds.length === 0) return;
     await deleteSchedules(selectedScheduleIds);
     setSelectedScheduleIds([]);
+  };
+
+  const isSelectionMode = selectedScheduleIds.length > 0;
+
+  const handleLongPress = (id: string) => {
+    if (!selectedScheduleIds.includes(id)) {
+      setSelectedScheduleIds((prev) => [...prev, id]);
+    }
   };
 
   const dayOfWeek = new Date(date + 'T00:00:00').getDay();
@@ -138,53 +140,90 @@ export default function DayCard({ date, schedules, employees }: DayCardProps) {
           >
             {formatDayLabel(date)}
           </span>
-        </div>
-
-        {/* 우측 액션: 선택 삭제 + 동기화 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {/* 선택 삭제 (텍스트 형태) */}
-          {selectedScheduleIds.length > 0 && (
+          {isSelectionMode && (
             <button
               type="button"
-              onClick={handleDeleteSelected}
-              title="선택한 직원 삭제"
+              onClick={handleToggleSelectAll}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: '2px 6px',
+                fontSize: 11,
+                fontWeight: 600,
+                color: 'var(--color-primary)',
+                cursor: 'pointer',
+                letterSpacing: '-0.02em',
+                borderRadius: 4,
+              }}
+              className="hover:bg-[var(--color-muted-bg)] transition-colors"
+            >
+              {isAllSelected ? '전체 해제' : '전체 선택'}
+            </button>
+          )}
+        </div>
+
+        {/* 우측 액션: 선택 모드 시 [취소] + [선택 삭제] / 평상시 [동기화] */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {isSelectionMode ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setSelectedScheduleIds([])}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  padding: '4px 2px',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: '#777777',
+                  cursor: 'pointer',
+                  letterSpacing: '-0.02em',
+                }}
+                className="hover:opacity-80 transition-opacity"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteSelected}
+                title="선택한 직원 삭제"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  padding: '4px 2px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: '#C0392B',
+                  cursor: 'pointer',
+                  letterSpacing: '-0.02em',
+                }}
+                className="hover:opacity-80 transition-opacity"
+              >
+                삭제 ({selectedScheduleIds.length})
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowSyncModal(true)}
+              disabled={isSyncing}
+              title="직원 정보 동기화"
               style={{
                 background: 'transparent',
                 border: 'none',
                 padding: '4px 2px',
                 fontSize: 12,
                 fontWeight: 500,
-                color: '#C0392B',
-                cursor: 'pointer',
+                color: 'var(--color-primary)',
+                cursor: isSyncing ? 'not-allowed' : 'pointer',
+                opacity: isSyncing ? 0.5 : 0.8,
                 letterSpacing: '-0.02em',
               }}
-              className="hover:opacity-80 transition-opacity"
+              className="hover:opacity-100 transition-opacity"
             >
-              삭제
+              동기화
             </button>
           )}
-
-          {/* 동기화 버튼 (텍스트 형태) */}
-          <button
-            type="button"
-            onClick={() => setShowSyncModal(true)}
-            disabled={isSyncing}
-            title="직원 정보 동기화"
-            style={{
-              background: 'transparent',
-              border: 'none',
-              padding: '4px 2px',
-              fontSize: 12,
-              fontWeight: 500,
-              color: 'var(--color-primary)',
-              cursor: isSyncing ? 'not-allowed' : 'pointer',
-              opacity: isSyncing ? 0.5 : 0.8,
-              letterSpacing: '-0.02em',
-            }}
-            className="hover:opacity-100 transition-opacity"
-          >
-            동기화
-          </button>
         </div>
       </div>
 
@@ -209,7 +248,9 @@ export default function DayCard({ date, schedules, employees }: DayCardProps) {
               key={s.id}
               schedule={s}
               isSelected={selectedScheduleIds.includes(s.id)}
+              isSelectionMode={isSelectionMode}
               onToggleSelect={handleToggleSelectOne}
+              onLongPress={handleLongPress}
               isLast={idx === sortedSchedules.length - 1}
               variant="mobile"
             />
@@ -298,10 +339,23 @@ export default function DayCard({ date, schedules, employees }: DayCardProps) {
       {/* ── 하단: 직원 추가 버튼 ── */}
       <div
         style={{
-          padding: '6px 16px 10px',
+          position: 'relative',
+          padding: '12px 16px',
           background: 'var(--color-surface)',
         }}
       >
+        {/* 양쪽 여백이 있는 초미세 인셋 구분선 */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 16,
+            right: 16,
+            height: 1,
+            background: 'rgba(0, 0, 0, 0.045)',
+            pointerEvents: 'none',
+          }}
+        />
         <button
           type="button"
           onClick={() => setShowAddModal(true)}
@@ -314,18 +368,18 @@ export default function DayCard({ date, schedules, employees }: DayCardProps) {
             justifyContent: 'center',
             gap: 6,
             fontWeight: 600,
-            background: availableEmployees.length === 0 ? '#FAF9F7' : '#F4EFEA',
+            background: availableEmployees.length === 0 ? '#FAF9F7' : 'var(--color-muted-bg)',
             color: availableEmployees.length === 0 ? '#B0A898' : 'var(--color-primary)',
             border: 'none',
             borderRadius: 6,
             cursor: availableEmployees.length === 0 ? 'not-allowed' : 'pointer',
             letterSpacing: '-0.02em',
           }}
-          className={`w-full flex items-center justify-center gap-1.5 rounded-md transition-colors h-[48px] text-[14px] md:h-[34px] md:text-[12px] ${availableEmployees.length === 0 ? '' : 'hover:bg-[#ECE6DE]'
+          className={`w-full flex items-center justify-center gap-1.5 rounded-md transition-colors h-[32px] text-[12px] ${availableEmployees.length === 0 ? '' : 'hover:bg-[var(--color-muted-bg-hover)]'
             }`}
         >
-          <span className="text-[16px] md:text-[13px]" style={{ lineHeight: 1 }}>+</span>
-          직원 추가
+          <span className="text-[12px]" style={{ lineHeight: 1 }}>+</span>
+          근무자 추가
         </button>
       </div>
 
@@ -352,7 +406,7 @@ export default function DayCard({ date, schedules, employees }: DayCardProps) {
           date={date}
           availableEmployees={availableEmployees}
           onClose={() => setShowAddModal(false)}
-          onAdd={handleAddEmployee}
+          onAdd={handleAddEmployees}
         />
       )}
     </div>
@@ -408,7 +462,7 @@ function SyncBottomSheet({ date, onClose, onSync, isSyncing }: SyncBottomSheetPr
             </span>
           </div>
           <span style={{ fontSize: 12, color: '#666', lineHeight: 1.5 }}>
-            해당 요일의 기존 스케줄은 유지하고,<br />아직 등록되지 않은 직원만 채움니다.
+            해당 요일의 기존 스케줄은 유지하고,<br />아직 등록되지 않은 직원만 채웁니다.
           </span>
         </button>
 
@@ -457,7 +511,7 @@ function SyncBottomSheet({ date, onClose, onSync, isSyncing }: SyncBottomSheetPr
           fontWeight: 600,
           color: '#666',
           border: 'none',
-          background: '#F0EEE9',
+          background: 'var(--color-muted-bg)',
           borderRadius: 8,
           cursor: 'pointer',
         }}
@@ -468,90 +522,144 @@ function SyncBottomSheet({ date, onClose, onSync, isSyncing }: SyncBottomSheetPr
   );
 }
 
-// ─── 직원 추가 바텀시트 (스크롤 잠금 + 아래로 스와이프 닫기) ─────────────────────
+// ─── 직원 추가 바텀시트 (1안 플랫 리스트 + 다중 선택) ─────────────────────────
 interface AddEmployeeBottomSheetProps {
   date: string;
   availableEmployees: Employee[];
   onClose: () => void;
-  onAdd: (employee: Employee) => Promise<void>;
+  onAdd: (employees: Employee[]) => Promise<void>;
 }
 
 function AddEmployeeBottomSheet({ date, availableEmployees, onClose, onAdd }: AddEmployeeBottomSheetProps) {
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectedIds.length === availableEmployees.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(availableEmployees.map((e) => e.id));
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (selectedIds.length === 0 || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const selectedEmps = availableEmployees.filter((e) => selectedIds.includes(e.id));
+      await onAdd(selectedEmps);
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const isAllSelected =
+    availableEmployees.length > 0 && selectedIds.length === availableEmployees.length;
+
   return (
     <BottomSheet
       onClose={onClose}
-      maxWidth={420}
-      maxHeight="80vh"
-      padding="10px 20px 28px"
+      maxWidth={480}
+      maxHeight="88vh"
+      padding="12px 20px 24px"
       historyKey="addEmployeeSheet"
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, marginTop: 8 }}>
+      {/* 헤더 */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 12,
+          marginTop: 4,
+        }}
+      >
         <div>
-          <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--color-neutral-dark)', margin: 0 }}>
-            직원 추가
+          <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-neutral-dark)', margin: 0 }}>
+            근무자 추가
           </h3>
-          <span style={{ fontSize: 12, color: '#777', marginTop: 2, display: 'block' }}>
+          <span style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2, display: 'block' }}>
             {formatDayLabel(date)} · 배정 가능 {availableEmployees.length}명
           </span>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          style={{
-            border: 'none',
-            background: 'transparent',
-            fontSize: 20,
-            color: '#888',
-            cursor: 'pointer',
-            padding: 4,
-            lineHeight: 1,
-          }}
-        >
-          ✕
-        </button>
+
+        {availableEmployees.length > 0 && (
+          <button
+            type="button"
+            onClick={handleToggleSelectAll}
+            style={{
+              border: 'none',
+              background: 'transparent',
+              fontSize: 13,
+              fontWeight: 600,
+              color: 'var(--color-primary)',
+              cursor: 'pointer',
+              padding: '6px 4px',
+            }}
+          >
+            {isAllSelected ? '선택 해제' : '전체 선택'}
+          </button>
+        )}
       </div>
 
-      {/* 직원 목록 */}
-      <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 6, margin: '0 -4px', padding: '0 4px' }}>
+      {/* 직원 목록 (플랫 리스트) */}
+      <div
+        style={{
+          overflowY: 'auto',
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          margin: '0 -4px',
+          padding: '0 4px',
+        }}
+      >
         {availableEmployees.length === 0 ? (
-          <div style={{ padding: '36px 0', textAlign: 'center', color: '#999', fontSize: 13 }}>
+          <div style={{ padding: '48px 0', textAlign: 'center', color: '#999', fontSize: 13 }}>
             배정 가능한 직원이 없습니다.
           </div>
         ) : (
-          availableEmployees.map((emp) => {
+          availableEmployees.map((emp, idx) => {
             const shiftType = emp.default_shift_types[0] as ShiftType | undefined;
             const shiftDefaults = shiftType ? SHIFT_DEFAULTS[shiftType] : undefined;
-            const roles = emp.available_roles.map((r) => ROLE_LABELS[r] ?? r);
+            const roles = emp.available_roles ?? [];
+            const sortedRoles = (['manager', 'cashier', 'pass'] as const).filter((r) => roles.includes(r));
+            const isSelected = selectedIds.includes(emp.id);
+            const isLast = idx === availableEmployees.length - 1;
 
             return (
-              <button
+              <div
                 key={emp.id}
-                type="button"
-                onClick={async () => {
-                  await onAdd(emp);
-                  onClose();
-                }}
+                onClick={() => toggleSelect(emp.id)}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  width: '100%',
-                  padding: '12px 14px',
-                  background: '#FAF8F5',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: 10,
+                  padding: '12px 10px',
+                  borderRadius: 8,
                   cursor: 'pointer',
-                  textAlign: 'left',
-                  boxSizing: 'border-box',
+                  background: isSelected ? '#FAF7F2' : 'transparent',
+                  transition: 'background 0.12s ease',
+                  position: 'relative',
+                  userSelect: 'none',
+                  WebkitUserSelect: 'none',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {/* 좌측: 아바타 + (1행: 이름, 직무뱃지, 미성년자 / 2행: 근무타입, 시간) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
+                  {/* 미니 원형 아바타 (36px) */}
                   <div
                     style={{
                       width: 36,
                       height: 36,
                       borderRadius: '50%',
-                      background: '#EAE7E2',
+                      background: 'var(--color-muted-bg)',
                       color: 'var(--color-primary)',
                       display: 'flex',
                       alignItems: 'center',
@@ -563,52 +671,159 @@ function AddEmployeeBottomSheet({ date, availableEmployees, onClose, onAdd }: Ad
                   >
                     {emp.name.slice(-2)}
                   </div>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-neutral-dark)' }}>
+
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    {/* 1행: 이름 + 직무 통합 뱃지 + 미성년자 */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap', overflow: 'hidden' }}>
+                      <span
+                        style={{
+                          fontSize: 15,
+                          fontWeight: 700,
+                          color: 'var(--color-neutral-dark)',
+                          letterSpacing: '-0.02em',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
                         {emp.name}
                       </span>
-                      {shiftType && (
+
+                      {/* 직무 뱃지 */}
+                      {sortedRoles.length > 0 && (
                         <span
                           style={{
+                            padding: '1px 6px',
                             fontSize: 11,
                             fontWeight: 600,
-                            color: SHIFT_TEXT_COLOR[shiftType] ?? '#666',
-                            background: '#FFFFFF',
-                            padding: '1px 5px',
                             borderRadius: 4,
-                            border: '1px solid var(--color-border)',
+                            background: 'var(--color-muted-bg)',
+                            color: '#777777',
+                            lineHeight: 1.4,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            flexShrink: 0,
                           }}
                         >
-                          {SHIFT_LABELS[shiftType] ?? shiftType}
+                          {sortedRoles.map((r) => ROLE_LABELS[r] ?? r).join(' · ')}
+                        </span>
+                      )}
+
+                      {/* 미성년자 뱃지 */}
+                      {emp.is_minor && (
+                        <span
+                          style={{
+                            padding: '1px 5px',
+                            fontSize: 10,
+                            fontWeight: 700,
+                            borderRadius: 4,
+                            background: '#FEF3C7',
+                            color: '#D97706',
+                            lineHeight: 1.3,
+                            whiteSpace: 'nowrap',
+                            flexShrink: 0,
+                          }}
+                        >
+                          미성년자
                         </span>
                       )}
                     </div>
-                    <div style={{ fontSize: 11, color: '#777', marginTop: 3 }}>
-                      {roles.join(' · ') || '직무 없음'}
-                      {shiftDefaults && ` (${shiftDefaults.start}~${shiftDefaults.end})`}
+
+                    {/* 2행: 기본 근무타입(컬러 텍스트) + 시간 */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                      {shiftType ? (
+                        <>
+                          <span
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 700,
+                              color: SHIFT_TEXT_COLOR[shiftType] ?? '#666',
+                              letterSpacing: '-0.02em',
+                            }}
+                          >
+                            {SHIFT_LABELS[shiftType] ?? shiftType}
+                          </span>
+                          {shiftDefaults && (
+                            <span style={{ fontSize: 12, color: '#888', letterSpacing: '-0.02em' }}>
+                              {shiftDefaults.start}~{shiftDefaults.end}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span style={{ fontSize: 12, color: '#999' }}>기본 근무 미설정</span>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                <span
+                {/* 우측: 체크박스 인디케이터 */}
+                <div
                   style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: 'var(--color-primary)',
-                    background: '#FFFFFF',
-                    padding: '4px 10px',
+                    width: 22,
+                    height: 22,
                     borderRadius: 6,
-                    border: '1px solid var(--color-border)',
+                    border: isSelected ? 'none' : '1.5px solid #C8C4BE',
+                    background: isSelected ? 'var(--color-primary)' : 'transparent',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                     flexShrink: 0,
+                    marginLeft: 12,
+                    transition: 'all 0.15s ease',
                   }}
                 >
-                  + 추가
-                </span>
-              </button>
+                  {isSelected && (
+                    <svg width="12" height="9" viewBox="0 0 12 9" fill="none">
+                      <path d="M1.5 4.5L4.5 7.5L10.5 1.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </div>
+
+                {/* 인셋 구분선 (마지막 항목 제외, 선택 안 됐을 때 노출) */}
+                {!isLast && !isSelected && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: 58,
+                      right: 10,
+                      height: 1,
+                      background: 'var(--color-border)',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                )}
+              </div>
             );
           })
         )}
+      </div>
+
+      {/* 하단 일괄 추가 액션 버튼 */}
+      <div style={{ marginTop: 14 }}>
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={selectedIds.length === 0 || isSubmitting}
+          style={{
+            width: '100%',
+            padding: '14px 0',
+            fontSize: 14,
+            fontWeight: 700,
+            border: 'none',
+            borderRadius: 8,
+            background: selectedIds.length > 0 ? 'var(--color-primary)' : 'var(--color-muted-bg)',
+            color: selectedIds.length > 0 ? '#FFFFFF' : '#A0988E',
+            cursor: selectedIds.length > 0 ? 'pointer' : 'not-allowed',
+            transition: 'all 0.15s ease',
+            letterSpacing: '-0.02em',
+          }}
+        >
+          {isSubmitting
+            ? '추가하는 중...'
+            : selectedIds.length > 0
+            ? `${selectedIds.length}명 근무표에 추가`
+            : '추가할 직원을 선택해주세요'}
+        </button>
       </div>
     </BottomSheet>
   );

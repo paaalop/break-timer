@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
-import { autoAssignBreaks } from '@/lib/autoBreakAlgo';
-import type { WorkSchedule, BreakWarning, UpsertScheduleInput, Employee, OptimizationPolicy } from '@/types';
+import { autoAssignBreaks, validateBreakSlot } from '@/lib/autoBreakAlgo';
+import type { WorkSchedule, BreakWarning, UpsertScheduleInput, Employee, OptimizationPolicy, DailyBreakSetting } from '@/types';
 import { getMockAllEmployees } from './useEmployeeStore';
 import { getWeekDates, getWeekStartFromDate, parseDate } from '@/lib/weekUtils';
 import { SHIFT_DEFAULTS } from '@/lib/constants';
@@ -16,13 +16,17 @@ interface ScheduleStore {
   setWeekStart: (date: string) => void;
   setMinTotalStaff: (num: number) => void;
   fetchSchedules: (weekStart: string, silent?: boolean) => Promise<void>;
+  fetchDaySchedules: (date: string) => Promise<WorkSchedule[]>;
+  fetchDayBreakSetting: (date: string) => Promise<DailyBreakSetting | null>;
+  saveDayBreakSetting: (setting: { work_date: string; min_total_staff: number; break_start_ref: string }) => Promise<void>;
   upsertSchedule: (data: UpsertScheduleInput) => Promise<void>;
   deleteSchedule: (id: string) => Promise<void>;
   deleteSchedules: (ids: string[]) => Promise<void>;
   autoFillWeekSchedules: (weekStart: string, employees: Employee[]) => Promise<void>;
-  runAutoBreak: (date: string, breakStartRef: string) => Promise<void>;
+  runAutoBreak: (date: string, breakStartRef: string, minStaffOverride?: number) => Promise<{ updatedSchedules: WorkSchedule[]; warnings: BreakWarning[] }>;
   setManualBreak: (id: string, start: string, end: string) => Promise<void>;
   syncDaySchedules: (date: string, mode: 'missing_only' | 'reset_all', employees: Employee[]) => Promise<void>;
+  clearBreakWarnings: () => void;
 }
 
 // 목업 데이터
@@ -41,7 +45,14 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
   isLoading: false,
   error: null,
 
-  setMinTotalStaff: (num: number) => set({ minTotalStaff: num }),
+  clearBreakWarnings: () => set({ breakWarnings: [] }),
+
+  setMinTotalStaff: (num: number) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('auto_break_min_staff', String(num));
+    }
+    set({ minTotalStaff: num });
+  },
 
   setWeekStart: (date: string) => {
     set({ selectedWeekStart: date, schedules: [], breakWarnings: [] });
@@ -85,6 +96,150 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
     } catch (err) {
       const message = err instanceof Error ? err.message : '스케줄 조회 실패';
       set({ error: message, isLoading: false });
+    }
+  },
+
+  fetchDaySchedules: async (date: string): Promise<WorkSchedule[]> => {
+    try {
+      let rawSchedules: WorkSchedule[] = [];
+      if (!supabase) {
+        const allEmployees = getMockAllEmployees();
+        rawSchedules = mockSchedules
+          .filter((s) => s.work_date === date)
+          .map((s) => ({ ...s, employee: allEmployees.find((e) => e.id === s.employee_id) }))
+          .sort((a, b) => a.start_time.localeCompare(b.start_time));
+      } else {
+        const { data, error } = await supabase
+          .from('work_schedules')
+          .select('*, employee:employees(*)')
+          .eq('work_date', date)
+          .order('start_time', { ascending: true });
+
+        if (error) throw new Error(error.message);
+        rawSchedules = (data as WorkSchedule[]) ?? [];
+      }
+
+      // 로컬스토리지에 저장된 마지막 배치 결과 캐시가 있다면 휴게시간 보존
+      if (typeof window !== 'undefined') {
+        const cachedStr = localStorage.getItem(`auto_break_allocations_${date}`);
+        if (cachedStr) {
+          try {
+            const cached = JSON.parse(cachedStr) as Record<string, { start: string; end: string }>;
+            rawSchedules = rawSchedules.map((s) => {
+              const alloc = cached[s.employee_id];
+              if (alloc && (!s.break_start_time || !s.break_end_time)) {
+                return { ...s, break_start_time: alloc.start, break_end_time: alloc.end };
+              }
+              return s;
+            });
+          } catch {
+            // ignore
+          }
+        }
+      }
+
+      return rawSchedules;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '일별 스케줄 조회 실패';
+      set({ error: message });
+      return [];
+    }
+  },
+
+  fetchDayBreakSetting: async (date: string): Promise<DailyBreakSetting | null> => {
+    try {
+      if (!supabase) {
+        if (typeof window !== 'undefined') {
+          const cached = localStorage.getItem(`auto_break_config_${date}`);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            return {
+              work_date: date,
+              min_total_staff: parsed.minStaff ?? 4,
+              break_start_ref: parsed.breakStartRef ?? '14:00',
+            };
+          }
+        }
+        return null;
+      }
+
+      const { data, error } = await supabase
+        .from('daily_break_settings')
+        .select('*')
+        .eq('work_date', date)
+        .maybeSingle();
+
+      if (error) {
+        console.warn('[fetchDayBreakSetting] DB read error:', error.message);
+        if (typeof window !== 'undefined') {
+          const cached = localStorage.getItem(`auto_break_config_${date}`);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            return {
+              work_date: date,
+              min_total_staff: parsed.minStaff ?? 4,
+              break_start_ref: parsed.breakStartRef ?? '14:00',
+            };
+          }
+        }
+        return null;
+      }
+
+      if (data) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`auto_break_config_${date}`, JSON.stringify({
+            minStaff: data.min_total_staff,
+            breakStartRef: data.break_start_ref,
+          }));
+        }
+        return data as DailyBreakSetting;
+      }
+
+      // DB에 없는 날짜면 로컬스토리지 확인
+      if (typeof window !== 'undefined') {
+        const cached = localStorage.getItem(`auto_break_config_${date}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          return {
+            work_date: date,
+            min_total_staff: parsed.minStaff ?? 4,
+            break_start_ref: parsed.breakStartRef ?? '14:00',
+          };
+        }
+      }
+
+      return null;
+    } catch {
+      return null;
+    }
+  },
+
+  saveDayBreakSetting: async (setting: { work_date: string; min_total_staff: number; break_start_ref: string }): Promise<void> => {
+    // 1. 브라우저 캐시 즉시 저장
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`auto_break_config_${setting.work_date}`, JSON.stringify({
+        minStaff: setting.min_total_staff,
+        breakStartRef: setting.break_start_ref,
+      }));
+    }
+
+    // 2. Supabase upsert
+    if (supabase) {
+      try {
+        const { error } = await supabase
+          .from('daily_break_settings')
+          .upsert({
+            work_date: setting.work_date,
+            min_total_staff: setting.min_total_staff,
+            break_start_ref: setting.break_start_ref,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'work_date' });
+        if (error) {
+          console.warn('[saveDayBreakSetting] DB upsert error:', error.message);
+        }
+      } catch (err) {
+        console.warn('[saveDayBreakSetting] error:', err);
+      }
     }
   },
 
@@ -317,56 +472,151 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
     }
   },
 
-  runAutoBreak: async (date: string, breakStartRef: string) => {
+  runAutoBreak: async (date: string, breakStartRef: string, minStaffOverride?: number) => {
     set({ isLoading: true, error: null });
     try {
-      // 해당 날짜 스케줄 (employee 포함)
-      const { schedules } = get();
-      const daySchedules = schedules.filter((s) => s.work_date === date && s.employee);
+      const minStaff = minStaffOverride ?? get().minTotalStaff;
+
+      // 1. DB(또는 목업)에서 해당 날짜 스케줄 직접 조회 (독립적 쿼리)
+      let daySchedules: WorkSchedule[] = [];
+      const client = supabase;
+      if (!client) {
+        const allEmployees = getMockAllEmployees();
+        daySchedules = mockSchedules
+          .filter((s) => s.work_date === date)
+          .map((s) => ({ ...s, employee: allEmployees.find((e) => e.id === s.employee_id) }));
+      } else {
+        const { data, error } = await client
+          .from('work_schedules')
+          .select('*, employee:employees(*)')
+          .eq('work_date', date)
+          .order('start_time', { ascending: true });
+        if (error) throw new Error(error.message);
+        daySchedules = (data as WorkSchedule[]) ?? [];
+      }
 
       if (daySchedules.length === 0) {
         set({ isLoading: false });
-        return;
+        return { updatedSchedules: [], warnings: [] };
       }
 
-      const result = autoAssignBreaks(daySchedules, breakStartRef, get().minTotalStaff);
+      // 2. 휴게 배치 알고리즘 실행
+      const result = autoAssignBreaks(daySchedules, breakStartRef, minStaff);
 
-      // N+1 방지: Promise.all 일괄 처리
-      await Promise.all(
-        Object.entries(result.allocations).map(([employeeId, { start, end }]) => {
-          const schedule = daySchedules.find((s) => s.employee_id === employeeId);
-          if (!schedule) return Promise.resolve();
-          return get().upsertSchedule({
-            id: schedule.id,
-            employee_id: schedule.employee_id,
-            work_date: schedule.work_date,
-            shift_type: schedule.shift_type,
-            start_time: schedule.start_time,
-            end_time: schedule.end_time,
-            break_start_time: start,
-            break_end_time: end,
-          });
-        })
-      );
+      // 3. DB 일괄 업데이트
+      let updatedSchedules: WorkSchedule[] = [];
+      if (!client) {
+        const now = new Date().toISOString();
+        mockSchedules = mockSchedules.map((s) => {
+          if (s.work_date !== date) return s;
+          const alloc = result.allocations[s.employee_id];
+          return {
+            ...s,
+            break_start_time: alloc ? alloc.start : null,
+            break_end_time: alloc ? alloc.end : null,
+            updated_at: now,
+          };
+        });
+        const allEmployees = getMockAllEmployees();
+        updatedSchedules = mockSchedules
+          .filter((s) => s.work_date === date)
+          .map((s) => ({ ...s, employee: allEmployees.find((e) => e.id === s.employee_id) }));
+      } else {
+        await Promise.all(
+          daySchedules.map(async (schedule) => {
+            const alloc = result.allocations[schedule.employee_id];
+            const { error } = await client
+              .from('work_schedules')
+              .update({
+                break_start_time: alloc ? alloc.start : null,
+                break_end_time: alloc ? alloc.end : null,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', schedule.id);
+            if (error) {
+              console.warn('[runAutoBreak] DB update error:', error.message);
+            }
+          })
+        );
+        const { data } = await client
+          .from('work_schedules')
+          .select('*, employee:employees(*)')
+          .eq('work_date', date)
+          .order('start_time', { ascending: true });
+        const fetched = (data as WorkSchedule[]) ?? [];
+        updatedSchedules = fetched.map((s) => {
+          const alloc = result.allocations[s.employee_id];
+          return {
+            ...s,
+            break_start_time: s.break_start_time || (alloc ? alloc.start : null),
+            break_end_time: s.break_end_time || (alloc ? alloc.end : null),
+          };
+        });
+      }
+
+      // 로컬스토리지에 마지막 배치 결과 영구 보존
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`auto_break_allocations_${date}`, JSON.stringify(result.allocations));
+      }
+
+      // 날짜별 배치 조건 DB 및 로컬 영속화
+      await get().saveDayBreakSetting({
+        work_date: date,
+        min_total_staff: minStaff,
+        break_start_ref: breakStartRef,
+      });
 
       set({ breakWarnings: result.warnings, isLoading: false });
+      return { updatedSchedules, warnings: result.warnings };
     } catch (err) {
       const message = err instanceof Error ? err.message : '자동 배치 실패';
       set({ error: message, isLoading: false });
+      throw err;
     }
   },
 
   setManualBreak: async (id: string, start: string, end: string) => {
     set({ error: null });
     try {
-      const { schedules } = get();
-      const targetSchedule = schedules.find((s) => s.id === id);
-      if (!targetSchedule) throw new Error('스케줄을 찾을 수 없습니다.');
+      const client = supabase;
+      let targetSchedule: WorkSchedule | undefined;
+      let otherSchedules: WorkSchedule[] = [];
 
-      // Step 3 검증 로직 (autoBreakAlgo에서 분리된 함수 사용)
-      const { validateBreakSlot } = await import('@/lib/autoBreakAlgo');
-      const otherSchedules = schedules.filter((s) => s.work_date === targetSchedule.work_date && s.id !== id);
+      if (!client) {
+        targetSchedule = mockSchedules.find((s) => s.id === id);
+        if (!targetSchedule) throw new Error('스케줄을 찾을 수 없습니다.');
+        const allEmployees = getMockAllEmployees();
+        targetSchedule = {
+          ...targetSchedule,
+          employee: allEmployees.find((e) => e.id === targetSchedule!.employee_id),
+        };
+        otherSchedules = mockSchedules
+          .filter((s) => s.work_date === targetSchedule!.work_date && s.id !== id)
+          .map((s) => ({
+            ...s,
+            employee: allEmployees.find((e) => e.id === s.employee_id),
+          }));
+      } else {
+        // DB에서 해당 스케줄 직접 단건 조회 (주간 스토어 캐시 의존 제거)
+        const { data: targetData, error: targetError } = await client
+          .from('work_schedules')
+          .select('*, employee:employees(*)')
+          .eq('id', id)
+          .single();
+        if (targetError || !targetData) throw new Error('스케줄을 찾을 수 없습니다.');
+        targetSchedule = targetData as WorkSchedule;
 
+        // DB에서 해당 일자의 동료 스케줄 직접 조회
+        const { data: othersData, error: othersError } = await client
+          .from('work_schedules')
+          .select('*, employee:employees(*)')
+          .eq('work_date', targetSchedule.work_date)
+          .neq('id', id);
+        if (othersError) throw new Error(othersError.message);
+        otherSchedules = (othersData as WorkSchedule[]) ?? [];
+      }
+
+      // Step 3 검증 로직
       const { isValid, missingRoles } = validateBreakSlot(
         targetSchedule,
         start,
@@ -381,16 +631,37 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
         throw new Error(message);
       }
 
-      await get().upsertSchedule({
-        id,
-        employee_id: targetSchedule.employee_id,
-        work_date: targetSchedule.work_date,
-        shift_type: targetSchedule.shift_type,
-        start_time: targetSchedule.start_time,
-        end_time: targetSchedule.end_time,
-        break_start_time: start,
-        break_end_time: end,
-      });
+      // DB에 직접 UPDATE (upsertSchedule 호출 X -> 주간근무표 상태 간섭 원천 차단)
+      const now = new Date().toISOString();
+      if (!client) {
+        mockSchedules = mockSchedules.map((s) =>
+          s.id === id
+            ? { ...s, break_start_time: start, break_end_time: end, updated_at: now }
+            : s
+        );
+      } else {
+        const { error: updateError } = await client
+          .from('work_schedules')
+          .update({
+            break_start_time: start,
+            break_end_time: end,
+            updated_at: now,
+          })
+          .eq('id', id);
+        if (updateError) throw new Error(updateError.message);
+      }
+
+      // 로컬스토리지 캐시에도 수동 변경 동기화
+      if (typeof window !== 'undefined' && targetSchedule) {
+        const cacheKey = `auto_break_allocations_${targetSchedule.work_date}`;
+        try {
+          const cached = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+          cached[targetSchedule.employee_id] = { start, end };
+          localStorage.setItem(cacheKey, JSON.stringify(cached));
+        } catch {
+          // ignore
+        }
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : '수동 휴게 저장 실패';
       set({ error: message });

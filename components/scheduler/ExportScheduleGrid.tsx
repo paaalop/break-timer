@@ -2,15 +2,8 @@
 
 import { forwardRef } from 'react';
 import type { WorkSchedule, Employee, ShiftType } from '@/types';
-import { SHIFT_LABELS } from '@/lib/constants';
+import { SHIFT_LABELS, SHIFT_TEXT_COLOR } from '@/lib/constants';
 import { getWeekDates, formatDayLabel, formatWeekRange } from '@/lib/weekUtils';
-
-const SHIFT_TEXT_COLOR: Record<ShiftType, string> = {
-  open: '#D97706',
-  close: '#2563EB',
-  oma: '#DC2626',
-  part: '#78716C',
-};
 
 function formatHHMM(timeStr?: string | null): string {
   if (!timeStr) return '';

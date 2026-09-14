@@ -2,19 +2,11 @@
 
 import { useState, useMemo } from 'react';
 import type { Employee, Role, DayOfWeek, ShiftType, CreateEmployeeInput, UpdateEmployeeInput } from '@/types';
-import { ROLE_OPTIONS, ROLE_LABELS, DAY_OPTIONS, DAY_LABELS, SHIFT_OPTIONS, SHIFT_LABELS } from '@/lib/constants';
+import { ROLE_OPTIONS, ROLE_LABELS, DAY_OPTIONS, DAY_LABELS, SHIFT_OPTIONS, SHIFT_LABELS, SHIFT_TEXT_COLOR } from '@/lib/constants';
 import MultiSelectDropdown from '@/components/ui/MultiSelectDropdown';
 import Badge from '@/components/ui/Badge';
 import Input from '@/components/ui/Input';
 import BottomSheet from '@/components/ui/BottomSheet';
-
-// ─── 뱃지 색상 ────────────────────────────────────────────────────────────────
-const SHIFT_TEXT_COLOR: Record<ShiftType, string> = {
-  open:  '#D97706', // 오픈 (따뜻한 앰버)
-  close: '#2563EB', // 마감 (세련된 블루)
-  oma:   '#DC2626', // 오마 (선명한 레드)
-  part:  '#78716C', // 파트 (부드러운 그레이)
-};
 
 
 const SHIFT_LEGEND = [
@@ -46,7 +38,7 @@ function Avatar({ name, size = 36 }: { name: string; size?: number }) {
         width: size,
         height: size,
         borderRadius: '50%',
-        background: '#EAE7E2',
+        background: 'var(--color-muted-bg)',
         color: 'var(--color-primary)',
         display: 'flex',
         alignItems: 'center',
@@ -153,7 +145,7 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
     gap: 6,
     fontSize: 12,
     fontWeight: 600,
-    color: '#8C857B',
+    color: 'var(--color-text-muted)',
     marginBottom: 8,
     letterSpacing: '-0.02em',
   };
@@ -265,9 +257,6 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
                 alignItems: 'center',
                 gap: 7,
                 padding: '4px 8px',
-                borderRadius: 20,
-                border: isMinor ? '1px solid var(--color-primary)' : '1px solid #D5D1C9',
-                background: isMinor ? '#F5F0EB' : '#FAFAFA',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
               }}
@@ -277,8 +266,8 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
               <span
                 style={{
                   fontSize: 11,
-                  fontWeight: isMinor ? 700 : 500,
-                  color: isMinor ? 'var(--color-primary)' : '#777777',
+                  fontWeight: isMinor ? 700 : 400,
+                  color: isMinor ? 'var(--color-primary)' : 'var(--color-text-muted)',
                   letterSpacing: '-0.02em',
                 }}
               >
@@ -328,18 +317,19 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
                   type="button"
                   onClick={() => toggleRole(opt.value)}
                   style={{
-                    border: active ? '2px solid var(--color-primary)' : '1px solid #D5D1C9',
+                    border: 'none',
                     borderRadius: 8,
                     padding: '11px 0',
                     fontSize: 13,
                     fontWeight: active ? 700 : 400,
-                    background: 'transparent',
-                    color: active ? 'var(--color-primary)' : '#777777',
+                    background: active ? 'transparent' : 'var(--color-muted-bg)',
+                    color: active ? 'var(--color-primary)' : 'var(--color-text-muted)',
                     cursor: 'pointer',
                     textAlign: 'center',
                     transition: 'all 0.15s ease',
                     whiteSpace: 'nowrap',
                     letterSpacing: '-0.02em',
+                    boxShadow: active ? 'inset 0 0 0 2px var(--color-primary)' : 'none',
                   }}
                 >
                   {opt.label}
@@ -348,8 +338,8 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
             })}
           </div>
           {isMinor && (
-            <p style={{ fontSize: 11, color: 'var(--color-primary)', margin: '6px 0 0', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span>ℹ️</span> 미성년자: 휴게시간 2시간 30분(150분)이 자동 적용됩니다.
+            <p style={{ fontSize: 11, color: 'var(--color-text-muted)', margin: '6px 0 0', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4 }}>
+              미성년자: 휴게시간 2시간 30분이 자동 적용됩니다.
             </p>
           )}
           {roleError && (
@@ -381,12 +371,13 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
                     justifyContent: 'center',
                     fontSize: 13,
                     fontWeight: active ? 700 : 400,
-                    border: active ? '2px solid var(--color-primary)' : '1px solid #D5D1C9',
-                    background: 'transparent',
-                    color: active ? 'var(--color-primary)' : '#777777',
+                    border: 'none',
+                    background: active ? 'transparent' : 'var(--color-muted-bg)',
+                    color: active ? 'var(--color-primary)' : 'var(--color-text-muted)',
                     cursor: 'pointer',
                     padding: 0,
                     transition: 'all 0.15s ease',
+                    boxShadow: active ? 'inset 0 0 0 2px var(--color-primary)' : 'none',
                   }}
                 >
                   {DAY_LABELS[d]}
@@ -412,37 +403,34 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
               display: 'grid',
               gridTemplateColumns: 'repeat(4, 1fr)',
               width: '100%',
+              padding: 3,
               borderRadius: 8,
-              border: '1px solid #D5D1C9',
-              overflow: 'hidden',
+              background: 'var(--color-muted-bg)',
               boxSizing: 'border-box',
-              background: 'transparent',
+              gap: 3,
             }}
           >
-            {SHIFT_OPTIONS.map((opt, idx) => {
+            {SHIFT_OPTIONS.map((opt) => {
               const active = shiftType === opt.value;
-              const isNextActive = idx < SHIFT_OPTIONS.length - 1 && shiftType === SHIFT_OPTIONS[idx + 1].value;
               return (
                 <button
                   key={opt.value}
                   type="button"
                   onClick={() => setShiftType(opt.value)}
                   style={{
-                    position: 'relative',
                     border: 'none',
-                    borderRight: idx < SHIFT_OPTIONS.length - 1 ? (active || isNextActive ? 'none' : '1px solid #D5D1C9') : 'none',
-                    borderRadius: idx === 0 ? '7px 0 0 7px' : idx === SHIFT_OPTIONS.length - 1 ? '0 7px 7px 0' : 0,
-                    boxShadow: active ? 'inset 0 0 0 2px var(--color-primary)' : 'none',
-                    padding: '11px 0',
+                    borderRadius: 6,
+                    padding: '10px 0',
                     fontSize: 13,
                     fontWeight: active ? 700 : 400,
-                    background: 'transparent',
-                    color: active ? 'var(--color-primary)' : '#777777',
+                    background: active ? '#FFFFFF' : 'transparent',
+                    color: active ? 'var(--color-primary)' : 'var(--color-text-muted)',
                     cursor: 'pointer',
                     textAlign: 'center',
                     transition: 'all 0.15s ease',
                     whiteSpace: 'nowrap',
                     letterSpacing: '-0.02em',
+                    boxShadow: active ? '0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 1px rgba(0, 0, 0, 0.04)' : 'none',
                   }}
                 >
                   {opt.label}
@@ -510,15 +498,12 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 8px', color: 'var(--color-neutral-dark)' }}>
-              직원 삭제
+            <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 16px', color: 'var(--color-neutral-dark)' }}>
+              직원을 삭제하시겠습니까?
             </h3>
             <p style={{ fontSize: 13, color: '#555', margin: '0 0 16px', lineHeight: 1.5 }}>
-              <strong>{name || '해당'}</strong> 직원을 정말 삭제하시겠습니까?
+              기존에 배정된 스케줄 기록은 유지됩니다.
               <br />
-              <span style={{ fontSize: 11, color: '#999' }}>
-                기존에 배정된 스케줄 기록은 유지됩니다.
-              </span>
             </p>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button
@@ -529,9 +514,6 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
                   padding: '7px 14px',
                   fontSize: 13,
                   fontWeight: 500,
-                  border: '1px solid var(--color-border)',
-                  borderRadius: 6,
-                  background: 'var(--color-surface)',
                   color: 'var(--color-neutral-dark)',
                   cursor: 'pointer',
                 }}
@@ -546,10 +528,7 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
                   padding: '7px 14px',
                   fontSize: 13,
                   fontWeight: 600,
-                  border: 'none',
-                  borderRadius: 6,
-                  background: '#C0392B',
-                  color: '#FFFFFF',
+                  color: '#C0392B',
                   cursor: isDeleting ? 'not-allowed' : 'pointer',
                   opacity: isDeleting ? 0.6 : 1,
                 }}
@@ -850,7 +829,8 @@ export default function EmployeeTable({
           style={{
             padding: '10px 14px',
             fontSize: 13,
-            background: '#F0EDE8',
+            color: 'var(--color-text-muted)',
+            background: 'var(--color-muted-bg)',
           }}
         />
         <button
@@ -903,7 +883,7 @@ export default function EmployeeTable({
               justifyContent: 'space-between',
             }}
           >
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#777777', letterSpacing: '-0.02em' }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-muted)', letterSpacing: '-0.02em' }}>
               {mobileQuery.trim()
                 ? `검색 결과 ${filteredEmployees.length}명 / 총 ${employees.length}명`
                 : `총 ${employees.length}명`}
@@ -964,78 +944,90 @@ export default function EmployeeTable({
                 <Avatar name={emp.name} size={52} />
 
                 {/* 정보 영역: 아바타에 귀속된 단일 그룹으로 인지 */}
-                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column'}}>
-                  {/* 1행: 이름 · 근무타입 (좌측 인라인 텍스트) / 직무 (우측 테두리 없는 개별 연한 배경 뱃지들) */}
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {/* 1행: 이름 · 직무 (좌측) / 미성년자 (우측 상태 뱃지) */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden' }}>
                       <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-neutral-dark)', letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
                         {emp.name}
                       </span>
-                      {emp.is_minor && (
+                      {sortedRoles.length > 0 && (
                         <span
                           style={{
-                            marginLeft: 6,
-                            padding: '1px 5px',
-                            fontSize: 10,
-                            fontWeight: 700,
+                            padding: '1px 6px',
+                            fontSize: 11,
+                            fontWeight: 600,
                             borderRadius: 4,
-                            background: '#FEF3C7',
-                            color: '#D97706',
+                            background: 'var(--color-muted-bg)',
+                            color: 'var(--color-text-muted)',
+                            letterSpacing: '-0.02em',
                             whiteSpace: 'nowrap',
-                            lineHeight: 1.3,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            lineHeight: 1.4,
                             flexShrink: 0,
                           }}
                         >
-                          미성년자
+                          {sortedRoles.map((role) => ROLE_LABELS[role]).join(' · ')}
                         </span>
-                      )}
-                      {shiftType && (
-                        <>
-                          <span style={{ color: '#000000ff', margin: '0 5px', fontSize: 12, fontWeight: 700 }}>·</span>
-                          <span
-                            style={{
-                              fontSize: 13,
-                              fontWeight: 600,
-                              color: SHIFT_TEXT_COLOR[shiftType] ?? '#666666',
-                              letterSpacing: '-0.02em',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {SHIFT_LABELS[shiftType]}
-                          </span>
-                        </>
                       )}
                     </div>
 
-                    {/* 직무: 테두리 없는 개별 연한 배경 뱃지 */}
-                    {sortedRoles.length > 0 && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end', flexShrink: 0 }}>
-                        {sortedRoles.map((role) => (
-                          <span
-                            key={role}
-                            style={{
-                              padding: '1px 4px',
-                              fontSize: 11,
-                              fontWeight: 600,
-                              borderRadius: 4,
-                              background: '#F0EEE9',
-                              color: 'var(--color-primary)',
-                              border: 'none',
-                              whiteSpace: 'nowrap',
-                              letterSpacing: '-0.02em',
-                            }}
-                          >
-                            {ROLE_LABELS[role]}
-                          </span>
-                        ))}
-                      </div>
+                    {/* 미성년자: 우측 상단 상태 뱃지 */}
+                    {emp.is_minor && (
+                      <span
+                        style={{
+                          padding: '1px 6px',
+                          fontSize: 10,
+                          fontWeight: 700,
+                          borderRadius: 4,
+                          background: '#FEF3C7',
+                          color: '#D97706',
+                          whiteSpace: 'nowrap',
+                          lineHeight: 1.4,
+                          flexShrink: 0,
+                        }}
+                      >
+                        미성년자
+                      </span>
                     )}
                   </div>
 
-                  {/* 2행: 근무 가능 요일 (이름 바로 아래 배치) */}
-                  <div style={{ fontSize: 12, fontWeight: 500, color: '#666666', letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {sortedDays.length > 0 ? sortedDays.map(d => DAY_LABELS[d] ?? String(d)).join('·') : '요일 없음'}
-                    요일 근무
+                  {/* 2행: 근무타입(컬러 텍스트) | 근무 가능 요일 */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      fontSize: 12,
+                      fontWeight: 500,
+                      color: 'var(--color-text-muted)',
+                      letterSpacing: '-0.02em',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {shiftType && (
+                      <>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            fontWeight: 600,
+                            color: SHIFT_TEXT_COLOR[shiftType] ?? 'var(--color-text-muted)',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {SHIFT_LABELS[shiftType]}
+                        </span>
+                        <span style={{ color: '#D5D1C9', fontSize: 10 }}>|</span>
+                      </>
+                    )}
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {sortedDays.length > 0 ? sortedDays.map((d) => DAY_LABELS[d] ?? String(d)).join('·') : '요일 없음'}
+                    </span>
                   </div>
                 </div>
               </button>

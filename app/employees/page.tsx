@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Header from '@/components/layout/Header';
 import EmployeeTable from '@/components/employees/EmployeeTable';
 import { useEmployeeStore } from '@/store/useEmployeeStore';
+import { useRefetchOnFocus } from '@/hooks/useRefetchOnFocus';
 import type { Role, DayOfWeek, ShiftType, CreateEmployeeInput, UpdateEmployeeInput } from '@/types';
 
 export default function EmployeesPage() {
@@ -26,6 +27,9 @@ export default function EmployeesPage() {
   useEffect(() => {
     fetchEmployees();
   }, [fetchEmployees]);
+
+  // 탭 복귀 시 직원 목록 최신화
+  useRefetchOnFocus(fetchEmployees);
 
   const handleOpenAdd = () => {
     setIsAdding(true);

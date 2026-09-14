@@ -55,3 +55,11 @@ export interface AlgoResult {
   allocations: Record<string, { start: string; end: string }>;
   warnings: BreakWarning[];
 }
+
+export interface DailyBreakSetting {
+  work_date: string;
+  min_total_staff: number;
+  break_start_ref: string;
+  created_at?: string;
+  updated_at?: string;
+}

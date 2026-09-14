@@ -120,6 +120,15 @@ export function autoAssignBreaks(
   const allocationsMin = new Map<string, { startMin: number; endMin: number }>();
 
   for (const worker of queue) {
+    const workerStartMin = toMinutes(worker.start_time);
+    const workerEndMin = toMinutes(worker.end_time);
+    const workDurationMin = workerEndMin - workerStartMin;
+
+    // 4시간(240분) 미만 근무자는 근로기준법상 휴게시간 제외
+    if (workDurationMin < 240) {
+      continue;
+    }
+
     const isMinor = Boolean(worker.employee?.is_minor);
     const blocks = isMinor
       ? MINOR_BREAK_BLOCKS
@@ -128,8 +137,8 @@ export function autoAssignBreaks(
         : ((BREAK_BLOCKS as Record<string, number>)[worker.shift_type] ?? 3);
 
     const durationMin = blocks * BREAK_BLOCK_MINUTES;
-    const workerEndMin = toMinutes(worker.end_time);
-    let slotStartMin = toMinutes(breakStartRef);
+    // 탐색 시작: 기준 시간(breakStartRef)과 실제 출근 시간(workerStartMin) 중 늦은 시간부터
+    let slotStartMin = Math.max(toMinutes(breakStartRef), workerStartMin);
 
     interface SlotCandidate {
       startMin: number;
@@ -139,7 +148,7 @@ export function autoAssignBreaks(
 
     const validSlots: SlotCandidate[] = [];
 
-    // 앞 시간(13:30)부터 30분 단위로 차례차례 들어갈 수 있는지 탐색
+    // 근무 시간 내에서 30분 단위로 차례차례 들어갈 수 있는지 탐색
     while (slotStartMin + durationMin <= workerEndMin) {
       const slotEndMin = slotStartMin + durationMin;
 
@@ -214,7 +223,7 @@ export function autoAssignBreaks(
       allocationsMin.set(worker.employee_id, { startMin: best.startMin, endMin: best.endMin });
     } else {
       // Fail-safe: 조건 100% 충족 불가 시, 동시 겹침을 최소화하되 무조건 가장 빠른 앞시간 선택
-      let slotStartMinFs = toMinutes(breakStartRef);
+      let slotStartMinFs = Math.max(toMinutes(breakStartRef), workerStartMin);
       const allSlots: { startMin: number; endMin: number; score: number }[] = [];
 
       while (slotStartMinFs + durationMin <= workerEndMin) {

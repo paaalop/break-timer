@@ -40,6 +40,14 @@ export const SHIFT_LABELS: Record<string, string> = {
   part: '파트',
 };
 
+// 근무 타입별 텍스트 색상
+export const SHIFT_TEXT_COLOR: Record<ShiftType, string> = {
+  open: '#D97706',
+  close: '#2563EB',
+  oma: '#DC2626',
+  part: '#78716C',
+};
+
 // Shift 기본 시간 테이블 (part 포함)
 export const SHIFT_DEFAULTS: Record<ShiftType, { start: string; end: string }> = {
   open:  { start: '10:30', end: '20:00' },
