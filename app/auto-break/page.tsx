@@ -32,16 +32,39 @@ function formatShortDate(dateStr: string): string {
 }
 
 // 직원 목록과 일관된 이니셜 아바타 (이름 뒤 2글자)
-function Avatar({ name, isMuted = false }: { name: string; isMuted?: boolean }) {
+function Avatar({
+  name,
+  isMuted = false,
+  variant = 'default',
+}: {
+  name: string;
+  isMuted?: boolean;
+  variant?: 'default' | 'break' | 'muted';
+}) {
   const initials = name.length >= 2 ? name.slice(-2) : name;
+  const isBreak = variant === 'break';
+  const isMutedState = variant === 'muted' || isMuted;
+
+  const bg = isBreak
+    ? '#FDF2F2'
+    : isMutedState
+    ? '#F5F3F0'
+    : 'var(--color-muted-bg)';
+
+  const color = isBreak
+    ? '#C0392B'
+    : isMutedState
+    ? 'var(--color-text-muted)'
+    : 'var(--color-primary)';
+
   return (
     <div
       style={{
         width: 22,
         height: 22,
         borderRadius: '50%',
-        background: isMuted ? '#F5F3F0' : 'var(--color-muted-bg)',
-        color: isMuted ? 'var(--color-text-muted)' : 'var(--color-primary)',
+        background: bg,
+        color: color,
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -110,7 +133,7 @@ export default function AutoBreakPage() {
 
       if (setting) {
         const staff = setting.min_total_staff > 0 ? setting.min_total_staff : 4;
-        const startRef = setting.break_start_ref || '14:00';
+        const startRef = (setting.break_start_ref || '14:00').slice(0, 5);
         setInputMinStaff(staff);
         setAppliedMinStaff(staff);
         setInputBreakStartRef(startRef);
@@ -379,7 +402,7 @@ export default function AutoBreakPage() {
                 borderRadius: 0,
               }}
             >
-              {inputBreakStartRef}
+              {inputBreakStartRef.slice(0, 5)}
             </button>
           </div>
 
@@ -540,9 +563,9 @@ export default function AutoBreakPage() {
                   </div>
                 </div>
 
-                {/* 2. 휴게자 행: 라벨 "휴게" + 아바타(연한 회색) + 회색 텍스트 이름 가로 나열 */}
+                {/* 2. 휴게자 행: 라벨 "휴게" + 아바타(세련된 붉은색) + 세련된 붉은색 이름 가로 나열 */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 14 }}>
-                  <span style={{ width: 36, color: '#78716C', fontWeight: 600, flexShrink: 0 }}>
+                  <span style={{ width: 36, color: '#C0392B', fontWeight: 600, flexShrink: 0 }}>
                     휴게
                   </span>
                   {slot.onBreak.length === 0 ? (
@@ -553,8 +576,8 @@ export default function AutoBreakPage() {
                         const name = s.employee?.name ?? '알 수 없음';
                         return (
                           <div key={s.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                            <Avatar name={name} isMuted={true} />
-                            <span style={{ fontWeight: 500, color: '#78716C' }}>
+                            <Avatar name={name} variant="break" />
+                            <span style={{ fontWeight: 600, color: '#C0392B' }}>
                               {name}
                             </span>
                           </div>

@@ -37,6 +37,21 @@ function generateMockScheduleId(): string {
   return `mock-sched-${mockScheduleIdCounter++}`;
 }
 
+function cleanTimeHHMM(timeStr?: string | null): string {
+  if (!timeStr) return '';
+  return timeStr.slice(0, 5);
+}
+
+function normalizeSchedule(s: WorkSchedule): WorkSchedule {
+  return {
+    ...s,
+    start_time: cleanTimeHHMM(s.start_time) || s.start_time,
+    end_time: cleanTimeHHMM(s.end_time) || s.end_time,
+    break_start_time: s.break_start_time ? cleanTimeHHMM(s.break_start_time) : null,
+    break_end_time: s.break_end_time ? cleanTimeHHMM(s.break_end_time) : null,
+  };
+}
+
 export const useScheduleStore = create<ScheduleStore>((set, get) => ({
   selectedWeekStart: getWeekStartFromDate(new Date()),
   schedules: [],
@@ -92,7 +107,8 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
         .order('work_date', { ascending: true });
 
       if (error) throw new Error(error.message);
-      set({ schedules: (data as WorkSchedule[]) ?? [], isLoading: false });
+      const normalized = ((data as WorkSchedule[]) ?? []).map(normalizeSchedule);
+      set({ schedules: normalized, isLoading: false });
     } catch (err) {
       const message = err instanceof Error ? err.message : '스케줄 조회 실패';
       set({ error: message, isLoading: false });
@@ -116,7 +132,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
           .order('start_time', { ascending: true });
 
         if (error) throw new Error(error.message);
-        rawSchedules = (data as WorkSchedule[]) ?? [];
+        rawSchedules = ((data as WorkSchedule[]) ?? []).map(normalizeSchedule);
       }
 
       // 로컬스토리지에 저장된 마지막 배치 결과 캐시가 있다면 휴게시간 보존
@@ -156,7 +172,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
             return {
               work_date: date,
               min_total_staff: parsed.minStaff ?? 4,
-              break_start_ref: parsed.breakStartRef ?? '14:00',
+              break_start_ref: cleanTimeHHMM(parsed.breakStartRef) || '14:00',
             };
           }
         }
@@ -178,7 +194,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
             return {
               work_date: date,
               min_total_staff: parsed.minStaff ?? 4,
-              break_start_ref: parsed.breakStartRef ?? '14:00',
+              break_start_ref: cleanTimeHHMM(parsed.breakStartRef) || '14:00',
             };
           }
         }
@@ -186,13 +202,17 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
       }
 
       if (data) {
+        const cleanSetting: DailyBreakSetting = {
+          ...data,
+          break_start_ref: cleanTimeHHMM(data.break_start_ref) || '14:00',
+        };
         if (typeof window !== 'undefined') {
           localStorage.setItem(`auto_break_config_${date}`, JSON.stringify({
-            minStaff: data.min_total_staff,
-            breakStartRef: data.break_start_ref,
+            minStaff: cleanSetting.min_total_staff,
+            breakStartRef: cleanSetting.break_start_ref,
           }));
         }
-        return data as DailyBreakSetting;
+        return cleanSetting;
       }
 
       // DB에 없는 날짜면 로컬스토리지 확인
@@ -203,7 +223,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
           return {
             work_date: date,
             min_total_staff: parsed.minStaff ?? 4,
-            break_start_ref: parsed.breakStartRef ?? '14:00',
+            break_start_ref: cleanTimeHHMM(parsed.breakStartRef) || '14:00',
           };
         }
       }
