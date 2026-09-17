@@ -106,8 +106,8 @@ export function autoAssignBreaks(
     return Math.floor(total * 0.75);
   }
 
-  // 우선순위: 오마 -> 오픈 -> 파트 -> 마감, 동일 shift_type 내에서는 매니저 직무 보유자 우선 배정
-  const priorityOrder: Record<string, number> = { oma: 0, open: 1, part: 2, close: 3 };
+  // 우선순위: 오마 -> 오픈 -> 마감 -> 파트, 동일 shift_type 내에서는 매니저 직무 보유자 우선 배정
+  const priorityOrder: Record<string, number> = { oma: 0, open: 1, close: 2, part: 3 };
   const queue = [...schedules].sort((a, b) => {
     const pA = priorityOrder[a.shift_type] ?? 99;
     const pB = priorityOrder[b.shift_type] ?? 99;
