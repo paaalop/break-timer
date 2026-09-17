@@ -260,7 +260,7 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
               }}
-              title="미성년자 여부 (휴게시간 2시간 30분 적용)"
+              title="미성년자 여부 (총 근무시간 - 7시간 휴게 적용)"
               aria-pressed={isMinor}
             >
               <span
@@ -339,7 +339,7 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
           </div>
           {isMinor && (
             <p style={{ fontSize: 11, color: 'var(--color-text-muted)', margin: '6px 0 0', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4 }}>
-              미성년자: 휴게시간 2시간 30분이 자동 적용됩니다.
+              미성년자: 총 근무시간에서 7시간을 뺀 시간(최소 30분)이 휴게시간으로 자동 적용됩니다.
             </p>
           )}
           {roleError && (

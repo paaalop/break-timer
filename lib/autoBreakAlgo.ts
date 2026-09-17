@@ -4,7 +4,7 @@
  */
 
 import type { WorkSchedule, AlgoResult, BreakWarning, OptimizationPolicy } from '@/types';
-import { ALL_ROLES, BREAK_BLOCK_MINUTES, BREAK_BLOCKS, PART_BREAK_BLOCKS, MINOR_BREAK_BLOCKS } from '@/types';
+import { ALL_ROLES, BREAK_BLOCK_MINUTES, BREAK_BLOCKS } from '@/types';
 
 // ─── 시간 유틸리티 ───────────────────────────────────────────────────────────
 
@@ -130,11 +130,19 @@ export function autoAssignBreaks(
     }
 
     const isMinor = Boolean(worker.employee?.is_minor);
-    const blocks = isMinor
-      ? MINOR_BREAK_BLOCKS
-      : worker.shift_type === 'part'
-        ? PART_BREAK_BLOCKS
-        : ((BREAK_BLOCKS as Record<string, number>)[worker.shift_type] ?? 3);
+    let blocks = 3;
+
+    if (isMinor) {
+      // 미성년자: 총 근무시간에서 7시간(420분)을 뺀 시간 (최소 30분 보장)
+      const calcMinorBreakMin = Math.max(30, workDurationMin - 420);
+      blocks = Math.ceil(calcMinorBreakMin / BREAK_BLOCK_MINUTES);
+    } else if (worker.shift_type === 'part') {
+      // 파트타이머: 8시간(480분) 이상이면 1.5시간(3블록), 4시간 이상 8시간 미만이면 30분(1블록)
+      blocks = workDurationMin >= 480 ? 3 : 1;
+    } else {
+      // 일반 근무
+      blocks = (BREAK_BLOCKS as Record<string, number>)[worker.shift_type] ?? 3;
+    }
 
     const durationMin = blocks * BREAK_BLOCK_MINUTES;
     // 탐색 시작: 기준 시간(breakStartRef)과 실제 출근 시간(workerStartMin) 중 늦은 시간부터
