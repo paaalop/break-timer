@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import { autoAssignBreaks, validateBreakSlot } from '@/lib/autoBreakAlgo';
-import type { WorkSchedule, BreakWarning, UpsertScheduleInput, Employee, OptimizationPolicy, DailyBreakSetting } from '@/types';
+import type { WorkSchedule, BreakWarning, UpsertScheduleInput, Employee, DailyBreakSetting } from '@/types';
 import { getMockAllEmployees } from './useEmployeeStore';
 import { getWeekDates, getWeekStartFromDate, parseDate } from '@/lib/weekUtils';
 import { SHIFT_DEFAULTS } from '@/lib/constants';

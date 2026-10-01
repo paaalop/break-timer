@@ -124,14 +124,14 @@ export default function MultiSelectDropdown<T extends string | number>({
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
-            color: selected.length ? 'var(--color-neutral-dark)' : '#999',
+            color: selected.length ? 'var(--color-neutral-dark)' : 'var(--color-text-muted)',
             fontSize: 11,
             paddingRight: 10,
           }}
         >
           {displayText}
         </span>
-        <span style={{ position: 'absolute', right: 2, fontSize: 8, color: '#888', flexShrink: 0 }}>
+        <span style={{ position: 'absolute', right: 2, fontSize: 8, color: 'var(--color-text-muted)', flexShrink: 0 }}>
           ▼
         </span>
       </button>
@@ -145,7 +145,7 @@ export default function MultiSelectDropdown<T extends string | number>({
             left: pos.left,
             transform: 'translateX(-50%)',
             zIndex: 9999,
-            background: '#ffffff',
+            background: 'var(--color-surface)',
             border: '1px solid var(--color-border)',
             borderTop: '2px solid var(--color-primary)',
             borderRadius: 4,

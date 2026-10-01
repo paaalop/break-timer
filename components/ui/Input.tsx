@@ -175,8 +175,8 @@ function decomposePadding(padding?: React.CSSProperties['padding']) {
             width: 18,
             height: 18,
             borderRadius: '50%',
-            background: '#C4BFB8',
-            color: '#FFFFFF',
+            background: 'var(--color-border-strong)',
+            color: 'var(--color-on-primary)',
             border: 'none',
             display: 'flex',
             alignItems: 'center',
@@ -187,8 +187,8 @@ function decomposePadding(padding?: React.CSSProperties['padding']) {
             flexShrink: 0,
             zIndex: 3,
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#9C958D')}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#C4BFB8')}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--color-text-muted)')}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--color-border-strong)')}
         >
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="18" y1="6" x2="6" y2="18" />

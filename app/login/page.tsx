@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
 import Input from '@/components/ui/Input';
 
@@ -11,7 +10,6 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { signIn } = useAuthStore();
-  const router = useRouter();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -26,7 +24,7 @@ export default function LoginPage() {
     try {
       await signIn(username.trim(), password);
       // IP 환경 및 프록시 쿠키 동기화를 위해 완전 새로고침 이동
-      window.location.href = '/scheduler';
+      window.location.href = new URL('/scheduler', window.location.origin).href;
     } catch (err) {
       setError(err instanceof Error ? err.message : '로그인 실패. 아이디와 비밀번호를 확인하세요.');
     } finally {
@@ -67,7 +65,7 @@ export default function LoginPage() {
           >
             코지하우스 사직점<br />직원 관리 시스템
           </h1>
-          <p style={{ fontSize: 13, color: '#888' }}>관리자 계정으로 로그인하세요.</p>
+          <p className="ui-label" style={{ color: 'var(--color-text-muted)' }}>관리자 계정으로 로그인하세요.</p>
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -126,11 +124,11 @@ export default function LoginPage() {
             <p
               style={{
                 fontSize: 13,
-                color: '#C0392B',
-                border: '1px solid #C0392B',
+                color: 'var(--color-danger)',
+                border: '1px solid var(--color-danger)',
                 padding: '8px 12px',
                 borderRadius: 4,
-                background: '#FDF2F1',
+                background: 'var(--color-danger-surface)',
               }}
             >
               {error}
@@ -146,7 +144,7 @@ export default function LoginPage() {
               fontSize: 14,
               fontWeight: 700,
               background: 'var(--color-primary)',
-              color: '#FFFFFF',
+              color: 'var(--color-on-primary)',
               border: 'none',
               borderRadius: 4,
               cursor: isLoading ? 'not-allowed' : 'pointer',
@@ -163,7 +161,7 @@ export default function LoginPage() {
           style={{
             marginTop: 20,
             fontSize: 12,
-            color: '#888',
+            color: 'var(--color-text-muted)',
             textAlign: 'center',
             lineHeight: 1.5,
           }}

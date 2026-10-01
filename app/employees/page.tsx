@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react';
 import Header from '@/components/layout/Header';
 import EmployeeTable from '@/components/employees/EmployeeTable';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import PageHeader from '@/components/ui/PageHeader';
 import { useEmployeeStore } from '@/store/useEmployeeStore';
 import { useRefetchOnFocus } from '@/hooks/useRefetchOnFocus';
-import type { Role, DayOfWeek, ShiftType, CreateEmployeeInput, UpdateEmployeeInput } from '@/types';
+import type { CreateEmployeeInput, UpdateEmployeeInput } from '@/types';
 
 export default function EmployeesPage() {
   const {
@@ -82,33 +84,15 @@ export default function EmployeesPage() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#FFFFFF' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--color-surface)' }}>
       <Header />
 
       <main className="max-w-[1400px] mx-auto px-0 pt-3 pb-20 sm:px-8 md:px-10 sm:pt-4 sm:pb-24">
-        {/* 페이지 헤더 */}
-        <div className="px-6 sm:px-4" style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', minHeight: 36 }}>
-            <h1 style={{ fontSize: 20, fontWeight: 700, lineHeight: '28px', color: 'var(--color-neutral-dark)', margin: 0 }}>
-              직원 관리
-            </h1>
-          </div>
-        </div>
+        <PageHeader title="직원 관리" />
 
         {/* 에러 배너 */}
         {error && (
-          <div
-            className="mx-4 sm:mx-0"
-            style={{
-              border: '1px solid #C0392B',
-              background: '#FDF2F1',
-              padding: '10px 16px',
-              borderRadius: 4,
-              fontSize: 13,
-              color: '#C0392B',
-              marginBottom: 16,
-            }}
-          >
+          <div className="ui-alert ui-alert--danger mx-4 mb-4 sm:mx-0">
             {error}
           </div>
         )}
@@ -130,74 +114,23 @@ export default function EmployeesPage() {
         />
       </main>
 
-      {/* 일괄 삭제 확인 모달 */}
-      {showDeleteConfirm && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.35)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 200,
-          }}
-          onClick={() => setShowDeleteConfirm(false)}
-        >
-          <div
-            style={{
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 6,
-              padding: 24,
-              maxWidth: 340,
-              width: '90%',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 10 }}>직원 삭제 확인</h2>
-            <p style={{ fontSize: 13, color: 'var(--color-neutral-dark)', marginBottom: 20, lineHeight: 1.5 }}>
-              선택한 <strong>{selectedIds.length}명</strong>의 직원을 삭제하시겠습니까?
-              <br />
-              <span style={{ fontSize: 12, color: '#888', marginTop: 4, display: 'block' }}>
-                기존 스케줄 데이터는 유지됩니다.
-              </span>
-            </p>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                disabled={isDeleting}
-                style={{
-                  padding: '6px 14px',
-                  fontSize: 13,
-                  border: '1px solid var(--color-border)',
-                  borderRadius: 4,
-                  background: 'var(--color-surface)',
-                  cursor: 'pointer',
-                }}
-              >
-                취소
-              </button>
-              <button
-                onClick={handleConfirmBatchDelete}
-                disabled={isDeleting}
-                style={{
-                  padding: '6px 14px',
-                  fontSize: 13,
-                  border: 'none',
-                  borderRadius: 4,
-                  background: '#C0392B',
-                  color: '#FFFFFF',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                }}
-              >
-                {isDeleting ? '삭제 중...' : '삭제 확인'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title="직원 삭제 확인"
+        description={(
+          <>
+            선택한 <strong>{selectedIds.length}명</strong>의 직원을 삭제하시겠습니까?
+            <span className="ui-caption" style={{ color: 'var(--color-text-muted)', display: 'block', marginTop: 'var(--space-1)' }}>
+              기존 스케줄 데이터는 유지됩니다.
+            </span>
+          </>
+        )}
+        confirmLabel="삭제 확인"
+        danger
+        pending={isDeleting}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleConfirmBatchDelete}
+      />
     </div>
   );
 }

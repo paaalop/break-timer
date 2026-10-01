@@ -4,12 +4,15 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Header from '@/components/layout/Header';
 import BreakWarningBanner from '@/components/scheduler/BreakWarningBanner';
 import AutoBreakRuleModal from '@/components/scheduler/AutoBreakRuleModal';
+import Avatar from '@/components/ui/Avatar';
+import DateNavigator from '@/components/ui/DateNavigator';
+import PageHeader from '@/components/ui/PageHeader';
 import TimeWheelPickerModal from '@/components/ui/TimeWheelPickerModal';
 import { useScheduleStore } from '@/store/useScheduleStore';
 import { useEmployeeStore } from '@/store/useEmployeeStore';
 import type { WorkSchedule, Role } from '@/types';
 import { toMinutes, toTimeStr } from '@/lib/autoBreakAlgo';
-import { formatDateToYYYYMMDD, formatDayLabel, parseDate } from '@/lib/weekUtils';
+import { formatDateToYYYYMMDD, parseDate } from '@/lib/weekUtils';
 import { ALL_ROLES, ROLE_LABELS } from '@/lib/constants';
 import { useRefetchOnFocus } from '@/hooks/useRefetchOnFocus';
 
@@ -29,54 +32,6 @@ function formatShortDate(dateStr: string): string {
   const date = d.getDate();
   const dayName = ['일', '월', '화', '수', '목', '금', '토'][d.getDay()];
   return `${month}/${date}(${dayName})`;
-}
-
-// 직원 목록과 일관된 이니셜 아바타 (이름 뒤 2글자)
-function Avatar({
-  name,
-  isMuted = false,
-  variant = 'default',
-}: {
-  name: string;
-  isMuted?: boolean;
-  variant?: 'default' | 'break' | 'muted';
-}) {
-  const initials = name.length >= 2 ? name.slice(-2) : name;
-  const isBreak = variant === 'break';
-  const isMutedState = variant === 'muted' || isMuted;
-
-  const bg = isBreak
-    ? '#FDF2F2'
-    : isMutedState
-    ? '#F5F3F0'
-    : 'var(--color-muted-bg)';
-
-  const color = isBreak
-    ? '#C0392B'
-    : isMutedState
-    ? 'var(--color-text-muted)'
-    : 'var(--color-primary)';
-
-  return (
-    <div
-      style={{
-        width: 22,
-        height: 22,
-        borderRadius: '50%',
-        background: bg,
-        color: color,
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: 10,
-        fontWeight: 700,
-        flexShrink: 0,
-        letterSpacing: '-0.02em',
-      }}
-    >
-      {initials}
-    </div>
-  );
 }
 
 export default function AutoBreakPage() {
@@ -111,8 +66,6 @@ export default function AutoBreakPage() {
 
   const {
     breakWarnings,
-    minTotalStaff,
-    setMinTotalStaff,
     runAutoBreak,
     fetchDaySchedules,
     fetchDayBreakSetting,
@@ -165,9 +118,15 @@ export default function AutoBreakPage() {
 
   // 날짜 변경 시 이전 날짜의 경고 배너를 즉시 비우고 해당 날짜 스케줄 로드
   useEffect(() => {
+    let cancelled = false;
     clearBreakWarnings();
-    loadDay();
-  }, [loadDay, clearBreakWarnings]);
+    void fetchDaySchedules(selectedDate).then((data) => {
+      if (!cancelled) setDaySchedules(data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDate, fetchDaySchedules, clearBreakWarnings]);
 
   // 페이지 이탈(언마운트) 시에도 잔여 경고 배너 정리
   useEffect(() => {
@@ -199,10 +158,6 @@ export default function AutoBreakPage() {
     const cur = parseDate(selectedDate);
     cur.setDate(cur.getDate() + diff);
     setSelectedDate(formatDateToYYYYMMDD(cur));
-  };
-
-  const handleSetToday = () => {
-    setSelectedDate(formatDateToYYYYMMDD(new Date()));
   };
 
   const isToday = selectedDate === formatDateToYYYYMMDD(new Date());
@@ -284,41 +239,18 @@ export default function AutoBreakPage() {
   }, [daySchedules, appliedBreakStartRef, appliedMinStaff]);
 
   return (
-    <div style={{ minHeight: '100vh', background: '#FFFFFF' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--color-surface)' }}>
       <Header />
 
       <main className="max-w-[1400px] mx-auto px-0 pt-3 pb-20 sm:px-8 md:px-10 sm:pt-4 sm:pb-24">
-        {/* 페이지 헤더 제목 */}
-        <div className="px-6 sm:px-4" style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', minHeight: 36 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <h1 style={{ fontSize: 20, fontWeight: 700, lineHeight: '28px', color: 'var(--color-neutral-dark)', margin: 0 }}>
-                휴게 시간 배치
-              </h1>
-
-              {/* 배치 규칙 버튼 (타이틀 우측, 연한 배경 스타일) */}
-              <button
-                type="button"
-                onClick={() => setShowRuleModal(true)}
-                title="자동 배치 규칙 보기"
-                style={{
-                  padding: '5px 10px',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  border: 'none',
-                  borderRadius: 6,
-                  background: 'var(--color-muted-bg)',
-                  color: 'var(--color-primary)',
-                  cursor: 'pointer',
-                  letterSpacing: '-0.02em',
-                }}
-                className="hover:bg-[var(--color-muted-bg-hover)] transition-colors"
-              >
-                배치 규칙
-              </button>
-            </div>
-          </div>
-        </div>
+        <PageHeader
+          title="휴게 시간 배치"
+          actions={(
+            <button type="button" className="ui-button ui-button--quiet" onClick={() => setShowRuleModal(true)} title="자동 배치 규칙 보기">
+              배치 규칙
+            </button>
+          )}
+        />
 
         {/* ── 셀렉터 (검색창 UI 레이아웃 - 중앙 정렬) ────────────────── */}
         <div className="px-6 sm:px-4" style={{ display: 'flex', justifyContent: 'center', marginBottom: 0, paddingLeft: 16, paddingRight: 16 }}>
@@ -335,51 +267,28 @@ export default function AutoBreakPage() {
             }}
           >
           {/* 행 1: 날짜 (라벨 없이 크게 중앙 정렬) */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, paddingBottom: 4 }}>
-            <button
-              type="button"
-              onClick={() => handleShiftDay(-1)}
-              style={navArrowStyle}
-              className="hover:bg-[#FDFCFA] transition-colors"
-              title="이전 날"
-            >
-              <svg width="9" height="10" viewBox="0 0 11 12" fill="currentColor">
-                <path d="M9.5 1.5L2 6L9.5 10.5Z" />
-              </svg>
-            </button>
-            <div
-              onClick={() => dateInputRef.current?.showPicker?.() ?? dateInputRef.current?.focus()}
-              style={{
-                cursor: 'pointer',
+          <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: 'var(--space-1)', position: 'relative' }}>
+            <DateNavigator
+              label={formatShortDate(selectedDate)}
+              onPrevious={() => handleShiftDay(-1)}
+              onNext={() => handleShiftDay(1)}
+              onLabelClick={() => dateInputRef.current?.showPicker?.() ?? dateInputRef.current?.focus()}
+              labelStyle={{
+                color: isWeekend ? 'var(--color-danger)' : 'var(--color-neutral-dark)',
                 fontSize: 18,
                 fontWeight: 700,
-                color: isWeekend ? '#DC2626' : 'var(--color-neutral-dark)',
-                padding: '2px 8px',
-                userSelect: 'none',
-                textAlign: 'center',
-                letterSpacing: '-0.02em',
               }}
-            >
-              <span>{formatShortDate(selectedDate)}</span>
-              <input
-                ref={dateInputRef}
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => handleShiftDay(1)}
-              style={navArrowStyle}
-              className="hover:bg-[#FDFCFA] transition-colors"
-              title="다음 날"
-            >
-              <svg width="9" height="10" viewBox="0 0 11 12" fill="currentColor">
-                <path d="M1.5 1.5L9 6L1.5 10.5Z" />
-              </svg>
-            </button>
+              previousLabel="이전 날"
+              nextLabel="다음 날"
+            />
+            <input
+              ref={dateInputRef}
+              type="date"
+              value={selectedDate}
+              onChange={(event) => setSelectedDate(event.target.value)}
+              aria-label="날짜 선택"
+              style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
+            />
           </div>
 
           {/* 행 2: 총 휴게 시작 (밑줄 너비를 인원 선택 너비 100px에 맞추고 좌측 정렬) */}
@@ -391,7 +300,7 @@ export default function AutoBreakPage() {
               style={{
                 width: 100,
                 border: 'none',
-                borderBottom: '1px solid #777777',
+                borderBottom: '1px solid var(--color-text-subtle)',
                 background: 'transparent',
                 padding: '2px 4px 4px',
                 fontSize: 14,
@@ -443,8 +352,8 @@ export default function AutoBreakPage() {
               fontWeight: 600,
               borderRadius: 6,
               border: 'none',
-              background: daySchedules.length === 0 ? '#E7E5E4' : 'var(--color-primary)',
-              color: daySchedules.length === 0 ? '#A8A29E' : '#FFFFFF',
+              background: daySchedules.length === 0 ? 'var(--color-border)' : 'var(--color-primary)',
+              color: daySchedules.length === 0 ? 'var(--color-disabled)' : 'var(--color-on-primary)',
               cursor: isLoading || daySchedules.length === 0 ? 'not-allowed' : 'pointer',
               transition: 'opacity 0.15s ease',
             }}
@@ -459,12 +368,12 @@ export default function AutoBreakPage() {
           <div
             className="mx-6 sm:mx-4"
             style={{
-              border: '1px solid #FECACA',
-              background: '#FEF2F2',
+              border: '1px solid var(--color-danger-border)',
+              background: 'var(--color-danger-surface)',
               padding: '8px 14px',
               borderRadius: 6,
               fontSize: 12,
-              color: '#DC2626',
+              color: 'var(--color-danger)',
               marginBottom: 12,
             }}
           >
@@ -489,7 +398,7 @@ export default function AutoBreakPage() {
               paddingLeft: 16,
               paddingRight: 16,
               textAlign: 'center',
-              color: '#A8A29E',
+              color: 'var(--color-disabled)',
               fontSize: 13,
             }}
           >
@@ -510,7 +419,7 @@ export default function AutoBreakPage() {
                   paddingBottom: 20,
                   paddingLeft: 16,
                   paddingRight: 16,
-                  borderBottom: '1px solid #E5E0D8',
+                  borderBottom: '1px solid var(--color-border)',
                   borderLeft: isCurrentSlot ? '4px solid var(--color-primary)' : '4px solid transparent',
                   background: isCurrentSlot ? 'var(--color-muted-bg)' : 'transparent',
                   display: 'flex',
@@ -534,9 +443,9 @@ export default function AutoBreakPage() {
                           fontSize: 12,
                           fontWeight: 700,
                           borderRadius: 4,
-                          background: '#FEF2F2',
-                          color: '#DC2626',
-                          border: '1px solid #FECACA',
+                          background: 'var(--color-danger-surface)',
+                          color: 'var(--color-danger)',
+                          border: '1px solid var(--color-danger-border)',
                         }}
                       >
                         인원 부족 · {slot.working.length}명
@@ -548,15 +457,15 @@ export default function AutoBreakPage() {
                           fontSize: 12,
                           fontWeight: 700,
                           borderRadius: 4,
-                          background: '#FEF2F2',
-                          color: '#DC2626',
-                          border: '1px solid #FECACA',
+                          background: 'var(--color-danger-surface)',
+                          color: 'var(--color-danger)',
+                          border: '1px solid var(--color-danger-border)',
                         }}
                       >
                         {slot.missingRoles.map((r) => ROLE_LABELS[r] ?? r).join('/')} 공백
                       </span>
                     ) : (
-                      <span style={{ fontSize: 13, color: '#78716C', fontWeight: 500 }}>
+                      <span style={{ fontSize: 13, color: 'var(--color-shift-part)', fontWeight: 500 }}>
                         근무 {slot.working.length}명
                       </span>
                     )}
@@ -565,19 +474,19 @@ export default function AutoBreakPage() {
 
                 {/* 2. 휴게자 행: 라벨 "휴게" + 아바타(세련된 붉은색) + 세련된 붉은색 이름 가로 나열 */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 14 }}>
-                  <span style={{ width: 36, color: '#C0392B', fontWeight: 600, flexShrink: 0 }}>
+                  <span style={{ width: 36, color: 'var(--color-danger)', fontWeight: 600, flexShrink: 0 }}>
                     휴게
                   </span>
                   {slot.onBreak.length === 0 ? (
-                    <span style={{ color: '#A8A29E' }}>-</span>
+                    <span style={{ color: 'var(--color-disabled)' }}>-</span>
                   ) : (
                     <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                       {slot.onBreak.map((s) => {
                         const name = s.employee?.name ?? '알 수 없음';
                         return (
                           <div key={s.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                            <Avatar name={name} variant="break" />
-                            <span style={{ fontWeight: 600, color: '#C0392B' }}>
+                            <Avatar name={name} size={22} initialsLength={2} variant="danger" />
+                            <span style={{ fontWeight: 600, color: 'var(--color-danger)' }}>
                               {name}
                             </span>
                           </div>
@@ -593,14 +502,14 @@ export default function AutoBreakPage() {
                     근무
                   </span>
                   {slot.working.length === 0 ? (
-                    <span style={{ color: '#A8A29E' }}>-</span>
+                    <span style={{ color: 'var(--color-disabled)' }}>-</span>
                   ) : (
                     <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                       {slot.working.map((s) => {
                         const name = s.employee?.name ?? '알 수 없음';
                         return (
                           <div key={s.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                            <Avatar name={name} isMuted={false} />
+                            <Avatar name={name} size={22} initialsLength={2} />
                             <span style={{ fontWeight: 600, color: 'var(--color-neutral-dark)' }}>
                               {name}
                             </span>
@@ -634,25 +543,11 @@ export default function AutoBreakPage() {
   );
 }
 
-const navArrowStyle: React.CSSProperties = {
-  width: 26,
-  height: 26,
-  borderRadius: 6,
-  background: '#FFFFFF',
-  border: 'none',
-  color: 'var(--color-neutral-dark)',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: 0,
-};
-
 const stepperBtnStyle: React.CSSProperties = {
   width: 22,
   height: 22,
   borderRadius: 4,
-  background: '#FFFFFF',
+  background: 'var(--color-surface)',
   fontSize: 13,
   fontWeight: 700,
   color: 'var(--color-neutral-dark)',

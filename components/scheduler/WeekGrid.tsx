@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, useState, useEffect } from 'react';
+import { forwardRef, useState, useEffect, useMemo } from 'react';
 import type { WorkSchedule, Employee } from '@/types';
 import DayCard from './DayCard';
 import { getWeekDates, parseDate, formatDateToYYYYMMDD, formatWeekRange } from '@/lib/weekUtils';
@@ -21,7 +21,7 @@ const WeekGrid = forwardRef<HTMLDivElement, WeekGridProps>(function WeekGrid(
   { weekStart, schedules, employees, onBreakClick, onPrevWeek, onNextWeek, emptyState },
   ref
 ) {
-  const dates = getWeekDates(weekStart);
+  const dates = useMemo(() => getWeekDates(weekStart), [weekStart]);
 
   // 기본 활성 날짜: 오늘 날짜가 해당 주차에 포함되면 오늘, 아니면 첫째 날(월요일)
   const [activeDate, setActiveDate] = useState<string>(() => {
@@ -33,7 +33,7 @@ const WeekGrid = forwardRef<HTMLDivElement, WeekGridProps>(function WeekGrid(
   useEffect(() => {
     const today = formatDateToYYYYMMDD(new Date());
     setActiveDate(dates.includes(today) ? today : dates[0]);
-  }, [weekStart]);
+  }, [dates]);
 
   return (
     <div ref={ref}>
@@ -57,7 +57,7 @@ const WeekGrid = forwardRef<HTMLDivElement, WeekGridProps>(function WeekGrid(
               style={{
                 border: 'none',
                 background: 'transparent',
-                color: '#999',
+            color: 'var(--color-text-muted)',
                 fontSize: 18,
                 cursor: 'pointer',
                 padding: '2px 4px',
@@ -83,7 +83,7 @@ const WeekGrid = forwardRef<HTMLDivElement, WeekGridProps>(function WeekGrid(
               style={{
                 border: 'none',
                 background: 'transparent',
-                color: '#999',
+            color: 'var(--color-text-muted)',
                 fontSize: 20,
                 cursor: 'pointer',
                 padding: '2px 4px',
@@ -130,8 +130,8 @@ const WeekGrid = forwardRef<HTMLDivElement, WeekGridProps>(function WeekGrid(
                     color: isActive
                       ? 'var(--color-neutral-dark)'
                       : isWeekend
-                        ? '#C0392B'
-                        : '#999',
+                    ? 'var(--color-danger)'
+                    : 'var(--color-text-muted)',
                     transition: 'color 0.12s ease, border-color 0.12s ease',
                   }}
                 >

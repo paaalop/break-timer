@@ -21,7 +21,7 @@ function generateMockId(): string {
   return `mock-emp-${mockIdCounter++}`;
 }
 
-export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
+export const useEmployeeStore = create<EmployeeStore>((set) => ({
   employees: [],
   isLoading: false,
   error: null,
@@ -82,7 +82,8 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
       // DB에 is_minor 컬럼이 아직 생성되지 않은 경우(PGRST204) fallback: is_minor 제외 후 재시도
       if (insertRes.error && insertRes.error.message.includes('is_minor')) {
         console.warn('[Supabase] is_minor 컬럼이 DB에 없습니다. 마이그레이션(20260913000000_add_is_minor_to_employees.sql) 적용이 필요합니다.');
-        const { is_minor: _, ...fallbackData } = data;
+        const fallbackData = { ...data };
+        delete fallbackData.is_minor;
         insertRes = await supabase
           .from('employees')
           .insert([{ ...fallbackData, is_deleted: false }])
@@ -122,7 +123,8 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
       // DB에 is_minor 컬럼이 아직 생성되지 않은 경우 fallback
       if (updateRes.error && updateRes.error.message.includes('is_minor')) {
         console.warn('[Supabase] is_minor 컬럼이 DB에 없습니다. 마이그레이션 적용이 필요합니다.');
-        const { is_minor: _, ...fallbackData } = data;
+        const fallbackData = { ...data };
+        delete fallbackData.is_minor;
         updateRes = await supabase
           .from('employees')
           .update(fallbackData)

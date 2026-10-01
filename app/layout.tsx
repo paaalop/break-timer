@@ -1,7 +1,15 @@
 import type { Metadata } from 'next';
+import { Noto_Sans_KR } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/next';
 import ClarityAnalytics from '@/components/analytics/ClarityAnalytics';
 import './globals.css';
+
+const notoSansKr = Noto_Sans_KR({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-noto-sans-kr',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: '코지하우스 사직점 직원 관리',
@@ -14,15 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ko" className="h-full">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang="ko" className={`h-full ${notoSansKr.variable}`}>
       <body className="min-h-full flex flex-col">
         {children}
         <Analytics />

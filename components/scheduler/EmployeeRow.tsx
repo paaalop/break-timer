@@ -1,18 +1,17 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import type { WorkSchedule, ShiftType } from '@/types';
 import { SHIFT_DEFAULTS, SHIFT_LABELS, SHIFT_OPTIONS, ROLE_LABELS, SHIFT_TEXT_COLOR } from '@/lib/constants';
 import { useScheduleStore } from '@/store/useScheduleStore';
 import BottomSheet from '@/components/ui/BottomSheet';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import TimeWheelPickerModal from '@/components/ui/TimeWheelPickerModal';
+import { formatTimeHHMM } from '@/lib/timeUtils';
+import { isBreakOutsideWorkHours } from '@/lib/scheduleValidation';
+import BreakWarningBanner from './BreakWarningBanner';
 
 const SHIFT_TYPES = SHIFT_OPTIONS.map((opt) => opt.value);
-
-function formatToHHMM(timeStr?: string | null): string {
-  if (!timeStr) return '10:30';
-  return timeStr.slice(0, 5);
-}
 
 // ─── 아바타 ↔ 체크박스 3D 뒤집힘(Flip) 컴포넌트 ──────────────────────────────
 interface FlipAvatarCheckboxProps {
@@ -68,7 +67,6 @@ function FlipAvatarCheckbox({
             fontWeight: 700,
             letterSpacing: '-0.02em',
             userSelect: 'none',
-            boxShadow: 'inset 0 0 0 1px rgba(0, 0, 0, 0.04)',
           }}
         >
           {initials}
@@ -84,13 +82,12 @@ function FlipAvatarCheckbox({
             transform: 'rotateY(180deg)',
             borderRadius: '50%',
             background: isSelected ? 'var(--color-primary)' : 'var(--color-surface)',
-            border: isSelected ? 'none' : '1.5px solid #C8C4BE',
+            border: isSelected ? '1.5px solid var(--color-primary)' : '1.5px solid var(--color-border-strong)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             transition: 'background 0.15s ease, border-color 0.15s ease',
             boxSizing: 'border-box',
-            boxShadow: isSelected ? '0 1px 3px rgba(74, 59, 50, 0.25)' : 'none',
           }}
         >
           {isSelected && (
@@ -119,8 +116,8 @@ interface ShiftBottomSheetProps {
 function ShiftBottomSheet({ schedule, onClose }: ShiftBottomSheetProps) {
   const { upsertSchedule, deleteSchedule } = useScheduleStore();
   const [shiftType, setShiftType] = useState<ShiftType>(schedule.shift_type);
-  const [startTime, setStartTime] = useState(formatToHHMM(schedule.start_time));
-  const [endTime, setEndTime] = useState(formatToHHMM(schedule.end_time));
+  const [startTime, setStartTime] = useState(formatTimeHHMM(schedule.start_time) || '10:30');
+  const [endTime, setEndTime] = useState(formatTimeHHMM(schedule.end_time) || '10:30');
   const [isSaving, setIsSaving] = useState(false);
   const [pickerTarget, setPickerTarget] = useState<'start' | 'end' | null>(null);
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
@@ -175,8 +172,6 @@ function ShiftBottomSheet({ schedule, onClose }: ShiftBottomSheetProps) {
         maxHeight="92vh"
         padding="10px 20px 36px"
         gap={20}
-        swipeThreshold={130}
-        historyKey="shiftSheet"
       >
         {/* 헤더: 제목 + (우상단 근무자 삭제) */}
         <div
@@ -200,7 +195,7 @@ function ShiftBottomSheet({ schedule, onClose }: ShiftBottomSheetProps) {
               border: 'none',
               cursor: 'pointer',
               padding: '4px 0',
-              color: '#C0392B',
+              color: 'var(--color-danger)',
               fontSize: 13,
               fontWeight: 600,
               opacity: isSaving || isDeleting ? 0.4 : 1,
@@ -256,19 +251,18 @@ function ShiftBottomSheet({ schedule, onClose }: ShiftBottomSheetProps) {
                   type="button"
                   onClick={() => handleShiftSelect(opt.value as ShiftType)}
                   style={{
-                    border: 'none',
                     borderRadius: 6,
                     padding: '10px 0',
                     fontSize: 13,
                     fontWeight: active ? 700 : 500,
-                    background: active ? '#FFFFFF' : 'transparent',
-                    color: active ? 'var(--color-primary)' : '#777777',
+                    background: active ? 'var(--color-surface)' : 'transparent',
+                    color: active ? 'var(--color-primary)' : 'var(--color-text-subtle)',
                     cursor: 'pointer',
                     textAlign: 'center',
                     transition: 'all 0.15s ease',
                     whiteSpace: 'nowrap',
                     letterSpacing: '-0.02em',
-                    boxShadow: active ? '0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 1px rgba(0, 0, 0, 0.04)' : 'none',
+                    border: active ? '1px solid var(--color-border)' : '1px solid transparent',
                   }}
                 >
                   {opt.label}
@@ -307,7 +301,7 @@ function ShiftBottomSheet({ schedule, onClose }: ShiftBottomSheetProps) {
                 </button>
               </div>
 
-              <span style={{ color: '#888', fontSize: 14, flexShrink: 0 }}>~</span>
+              <span style={{ color: 'var(--color-text-muted)', fontSize: 14, flexShrink: 0 }}>~</span>
 
               {/* 종료 시간 버튼 */}
               <div style={{ position: 'relative', flex: 1 }}>
@@ -349,7 +343,7 @@ function ShiftBottomSheet({ schedule, onClose }: ShiftBottomSheetProps) {
             border: 'none',
             borderRadius: 8,
             background: 'var(--color-primary)',
-            color: '#FFFFFF',
+            color: 'var(--color-on-primary)',
             cursor: isSaving ? 'not-allowed' : 'pointer',
             opacity: isSaving ? 0.6 : 1,
             marginTop: 6,
@@ -380,79 +374,17 @@ function ShiftBottomSheet({ schedule, onClose }: ShiftBottomSheetProps) {
         }}
       />
 
-      {/* 근무자 삭제 확인 다이얼로그 */}
-      {showDeleteConfirmDialog && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.45)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 600,
-          }}
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowDeleteConfirmDialog(false);
-          }}
-        >
-          <div
-            style={{
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 10,
-              padding: '20px 22px',
-              maxWidth: 320,
-              width: '88%',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 16px', color: 'var(--color-neutral-dark)' }}>
-              근무자를 삭제하시겠습니까?
-            </h3>
-            <p style={{ fontSize: 13, color: '#555', margin: '0 0 16px', lineHeight: 1.5 }}>
-              해당 날짜의 근무 일정이 삭제됩니다.
-            </p>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button
-                type="button"
-                onClick={() => setShowDeleteConfirmDialog(false)}
-                disabled={isDeleting}
-                style={{
-                  padding: '7px 14px',
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: 'var(--color-neutral-dark)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                }}
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmDelete}
-                disabled={isDeleting}
-                style={{
-                  padding: '7px 14px',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: '#C0392B',
-                  background: 'none',
-                  border: 'none',
-                  cursor: isDeleting ? 'not-allowed' : 'pointer',
-                  opacity: isDeleting ? 0.6 : 1,
-                }}
-              >
-                {isDeleting ? '삭제 중...' : '삭제'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={showDeleteConfirmDialog}
+        title="근무자를 삭제하시겠습니까?"
+        description="해당 날짜의 근무 일정이 삭제됩니다."
+        confirmLabel="삭제"
+        danger
+        pending={isDeleting}
+        zIndex={600}
+        onClose={() => setShowDeleteConfirmDialog(false)}
+        onConfirm={handleConfirmDelete}
+      />
     </>
   );
 }
@@ -471,7 +403,18 @@ interface EmployeeRowProps {
   variant?: 'mobile' | 'desktop';
 }
 
-export default function EmployeeRow({
+export default function EmployeeRow(props: EmployeeRowProps) {
+  const { schedule } = props;
+
+  return (
+    <EmployeeRowContent
+      key={`${schedule.id}-${schedule.shift_type}-${schedule.start_time}-${schedule.end_time}`}
+      {...props}
+    />
+  );
+}
+
+function EmployeeRowContent({
   schedule,
   isSelected,
   isSelectionMode = false,
@@ -503,7 +446,7 @@ export default function EmployeeRow({
     timerRef.current = setTimeout(() => {
       isLongPressRef.current = true;
       if (typeof window !== 'undefined' && 'vibrate' in navigator) {
-        try { navigator.vibrate(40); } catch (_) {}
+        try { navigator.vibrate(40); } catch {}
       }
       onLongPress?.(schedule.id);
     }, 450);
@@ -546,12 +489,6 @@ export default function EmployeeRow({
       setShowSheet(true);
     }
   };
-
-  useEffect(() => {
-    setShiftType(schedule.shift_type);
-    setStartTime(schedule.start_time);
-    setEndTime(schedule.end_time);
-  }, [schedule.shift_type, schedule.start_time, schedule.end_time]);
 
   // 데스크톱 전용 핸들러 ─────────────────────────────────────────────────────
   const handleShiftChange = async (newShift: ShiftType) => {
@@ -619,6 +556,12 @@ export default function EmployeeRow({
   const isPartTime = shiftType === 'part';
   const roles = schedule.employee?.available_roles ?? [];
   const sortedRoles = (['manager', 'cashier', 'pass'] as const).filter((r) => roles.includes(r));
+  const hasBreakWarning = isBreakOutsideWorkHours({
+    start_time: startTime,
+    end_time: endTime,
+    break_start_time: schedule.break_start_time,
+    break_end_time: schedule.break_end_time,
+  });
 
   return (
     <>
@@ -644,7 +587,7 @@ export default function EmployeeRow({
             position: 'relative',
             padding: '12px 16px',
             gap: 12,
-            background: isSelected ? '#FAF7F2' : 'var(--color-surface)',
+            background: isSelected ? 'var(--color-surface-subtle)' : 'var(--color-surface)',
             cursor: 'pointer',
             transition: 'background 0.15s ease',
             boxSizing: 'border-box',
@@ -688,7 +631,7 @@ export default function EmployeeRow({
                     fontWeight: 600,
                     borderRadius: 4,
                     background: 'var(--color-muted-bg)',
-                    color: '#777777',
+                    color: 'var(--color-text-subtle)',
                     letterSpacing: '-0.02em',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
@@ -709,8 +652,8 @@ export default function EmployeeRow({
                     fontSize: 10,
                     fontWeight: 700,
                     borderRadius: 4,
-                    background: '#FEF3C7',
-                    color: '#D97706',
+                    background: 'var(--color-warning-surface)',
+                    color: 'var(--color-warning)',
                     whiteSpace: 'nowrap',
                     lineHeight: 1.3,
                     flexShrink: 0,
@@ -720,6 +663,15 @@ export default function EmployeeRow({
                 </span>
               )}
             </div>
+            {hasBreakWarning && (
+              <div style={{ marginTop: 4 }}>
+                <BreakWarningBanner
+                  warnings={[]}
+                  message="휴게시간이 근무시간을 벗어났습니다."
+                  compact
+                />
+              </div>
+            )}
           </div>
 
           {/* 우측: 근무타입 칩 + 근무 시간 */}
@@ -729,7 +681,7 @@ export default function EmployeeRow({
               style={{
                 fontSize: 12,
                 fontWeight: 700,
-                color: SHIFT_TEXT_COLOR[shiftType] ?? '#666',
+                color: SHIFT_TEXT_COLOR[shiftType] ?? 'var(--color-text-subtle)',
                 letterSpacing: '-0.02em',
                 whiteSpace: 'nowrap',
               }}
@@ -742,20 +694,20 @@ export default function EmployeeRow({
               style={{
                 fontSize: 12.5,
                 fontWeight: 500,
-                color: '#666666',
+                color: 'var(--color-text-subtle)',
                 whiteSpace: 'nowrap',
                 letterSpacing: '-0.02em',
                 fontVariantNumeric: 'tabular-nums',
               }}
             >
-              {formatToHHMM(startTime)}~{formatToHHMM(endTime)}
+              {formatTimeHHMM(startTime)}~{formatTimeHHMM(endTime)}
             </span>
           </div>
 
           {/* 우측 화살표 (선택 모드 아닐 때만 노출) */}
           <span
             style={{
-              color: '#D0CCC6',
+              color: 'var(--color-border-strong)',
               fontSize: 16,
               flexShrink: 0,
               width: isSelectionMode ? 0 : 10,
@@ -777,7 +729,7 @@ export default function EmployeeRow({
                 left: 16,
                 right: 16,
                 height: 1,
-                background: 'rgba(0, 0, 0, 0.045)',
+                background: 'var(--color-surface-subtle)',
                 pointerEvents: 'none',
               }}
             />
@@ -791,7 +743,7 @@ export default function EmployeeRow({
           <tr
             className={variant === 'desktop' ? undefined : 'hidden md:table-row'}
             style={{
-              background: isSelected ? '#FAF7F2' : 'transparent',
+              background: isSelected ? 'var(--color-surface-subtle)' : 'transparent',
               transition: 'background 0.15s ease',
             }}
           >
@@ -878,25 +830,36 @@ export default function EmployeeRow({
                     disabled={isSaving}
                     style={timeButtonStyle}
                   >
-                    {formatToHHMM(startTime)}
+                    {formatTimeHHMM(startTime)}
                   </button>
-                  <span style={{ fontSize: 10, color: '#aaa', margin: '0 1px' }}>~</span>
+                  <span style={{ fontSize: 10, color: 'var(--color-disabled)', margin: '0 1px' }}>~</span>
                   <button
                     type="button"
                     onClick={() => setDesktopPickerTarget('end')}
                     disabled={isSaving}
                     style={timeButtonStyle}
                   >
-                    {formatToHHMM(endTime)}
+                    {formatTimeHHMM(endTime)}
                   </button>
                 </div>
               ) : (
-                <span style={{ fontSize: 11, color: '#777', whiteSpace: 'nowrap' }}>
-                  {formatToHHMM(startTime)}~{formatToHHMM(endTime)}
+                <span style={{ fontSize: 11, color: 'var(--color-text-subtle)', whiteSpace: 'nowrap' }}>
+                  {formatTimeHHMM(startTime)}~{formatTimeHHMM(endTime)}
                 </span>
               )}
             </td>
           </tr>
+          {hasBreakWarning && (
+            <tr className={variant === 'desktop' ? undefined : 'hidden md:table-row'}>
+              <td colSpan={4} style={{ padding: '4px 8px 6px', border: 'none' }}>
+                <BreakWarningBanner
+                  warnings={[]}
+                  message="휴게시간이 근무시간을 벗어났습니다."
+                  compact
+                />
+              </td>
+            </tr>
+          )}
           {!isLast && (
             <tr className={variant === 'desktop' ? undefined : 'hidden md:table-row'}>
               <td
@@ -928,7 +891,7 @@ export default function EmployeeRow({
       {/* 데스크톱 타임 피커 모달 */}
       <TimeWheelPickerModal
         isOpen={desktopPickerTarget !== null}
-        value={desktopPickerTarget === 'start' ? formatToHHMM(startTime) : formatToHHMM(endTime)}
+        value={desktopPickerTarget === 'start' ? formatTimeHHMM(startTime) : formatTimeHHMM(endTime)}
         title={desktopPickerTarget === 'start' ? '근무 시작 시간을 알려주세요' : '근무 종료 시간을 알려주세요'}
         minTime="10:30"
         maxTime="21:30"
@@ -957,10 +920,10 @@ const tdStyle: React.CSSProperties = {
 };
 
 const timeButtonStyle: React.CSSProperties = {
-  border: '1px solid #E5E0D8',
+  border: '1px solid var(--color-border)',
   borderRadius: 4,
   outline: 'none',
-  background: '#FAF7F2',
+  background: 'var(--color-surface-subtle)',
   fontSize: 11,
   fontFamily: 'inherit',
   fontWeight: 600,

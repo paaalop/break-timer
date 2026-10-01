@@ -7,17 +7,16 @@ import MultiSelectDropdown from '@/components/ui/MultiSelectDropdown';
 import Badge from '@/components/ui/Badge';
 import Input from '@/components/ui/Input';
 import BottomSheet from '@/components/ui/BottomSheet';
+import Avatar from '@/components/ui/Avatar';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
-
-const SHIFT_LEGEND = [
-  { type: 'open'  as ShiftType, label: '오픈' },
-  { type: 'close' as ShiftType, label: '마감' },
-  { type: 'oma'   as ShiftType, label: '오마' },
-  { type: 'part'  as ShiftType, label: '파트' },
-];
 
 // DAY_OPTIONS 순서 그대로 (월~일)
 const DAY_TOGGLE_ORDER: DayOfWeek[] = [1, 2, 3, 4, 5, 6, 0];
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
 
 const ROLE_ORDER: Record<string, number> = Object.fromEntries(
   ROLE_OPTIONS.map((opt, i) => [opt.value, i])
@@ -29,30 +28,6 @@ function getSortedRoles(roles: Role[]): Role[] {
     .sort((a, b) => (ROLE_ORDER[a] ?? 99) - (ROLE_ORDER[b] ?? 99));
 }
 
-
-function Avatar({ name, size = 36 }: { name: string; size?: number }) {
-  const initials = name.length >= 2 ? name.slice(-2) : name;
-  return (
-    <div
-      style={{
-        width: size,
-        height: size,
-        borderRadius: '50%',
-        background: 'var(--color-muted-bg)',
-        color: 'var(--color-primary)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: size >= 44 ? 15 : size * 0.33,
-        fontWeight: 700,
-        flexShrink: 0,
-        letterSpacing: '-0.02em',
-      }}
-    >
-      {initials}
-    </div>
-  );
-}
 
 // ─── 모바일 직원 정보 시트 (수정 및 신규 등록 공용 바텀시트) ────────────────────
 interface MobileEmployeeSheetProps {
@@ -90,7 +65,8 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
   const toggleRole = (r: Role) => {
     setRoles((prev) => {
       const next = new Set(prev);
-      next.has(r) ? next.delete(r) : next.add(r);
+      if (next.has(r)) next.delete(r);
+      else next.add(r);
       if (next.size > 0) setRoleError(null);
       return next;
     });
@@ -99,7 +75,8 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
   const toggleDay = (d: DayOfWeek) => {
     setDays((prev) => {
       const next = new Set(prev);
-      next.has(d) ? next.delete(d) : next.add(d);
+      if (next.has(d)) next.delete(d);
+      else next.add(d);
       if (next.size > 0) setDayError(null);
       return next;
     });
@@ -132,8 +109,8 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
         is_minor: isMinor,
       });
       onClose();
-    } catch (err: any) {
-      setGeneralError(err?.message || (isEdit ? '수정 실패' : '등록 실패'));
+    } catch (err: unknown) {
+      setGeneralError(getErrorMessage(err, isEdit ? '수정 실패' : '등록 실패'));
     } finally {
       setIsSaving(false);
     }
@@ -172,7 +149,6 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
         maxHeight="92vh"
         padding="10px 20px 36px"
         gap={20}
-        historyKey="employeeSheet"
       >
         {/* 헤더: 제목 + (수정 모드일 때만 우상단 직원 삭제) */}
         <div
@@ -197,7 +173,7 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
                 border: 'none',
                 cursor: 'pointer',
                 padding: '4px 0',
-                color: '#C0392B',
+                color: 'var(--color-danger)',
                 fontSize: 13,
                 fontWeight: 600,
                 opacity: isSaving || isDeleting ? 0.4 : 1,
@@ -230,7 +206,7 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
             }}
           />
           {nameError && (
-            <p style={{ fontSize: 12, color: '#C0392B', margin: '6px 0 0', fontWeight: 500 }}>
+            <p className="ui-caption" style={{ color: 'var(--color-danger)', margin: '6px 0 0', fontWeight: 500 }}>
               {nameError}
             </p>
           )}
@@ -278,7 +254,7 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
                   width: 28,
                   height: 16,
                   borderRadius: 8,
-                  background: isMinor ? 'var(--color-primary)' : '#D5D1C9',
+                  background: isMinor ? 'var(--color-primary)' : 'var(--color-border-strong)',
                   display: 'flex',
                   alignItems: 'center',
                   padding: '2px',
@@ -291,10 +267,9 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
                     width: 12,
                     height: 12,
                     borderRadius: '50%',
-                    background: '#FFFFFF',
+                    background: 'var(--color-surface)',
                     transform: isMinor ? 'translateX(12px)' : 'translateX(0px)',
                     transition: 'transform 0.18s ease',
-                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
                   }}
                 />
               </div>
@@ -329,7 +304,7 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
                     transition: 'all 0.15s ease',
                     whiteSpace: 'nowrap',
                     letterSpacing: '-0.02em',
-                    boxShadow: active ? 'inset 0 0 0 2px var(--color-primary)' : 'none',
+                    outline: active ? '2px solid var(--color-primary)' : 'none',
                   }}
                 >
                   {opt.label}
@@ -343,7 +318,7 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
             </p>
           )}
           {roleError && (
-            <p style={{ fontSize: 12, color: '#C0392B', margin: '6px 0 0', fontWeight: 500 }}>
+            <p className="ui-caption" style={{ color: 'var(--color-danger)', margin: '6px 0 0', fontWeight: 500 }}>
               {roleError}
             </p>
           )}
@@ -377,7 +352,7 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
                     cursor: 'pointer',
                     padding: 0,
                     transition: 'all 0.15s ease',
-                    boxShadow: active ? 'inset 0 0 0 2px var(--color-primary)' : 'none',
+                    outline: active ? '2px solid var(--color-primary)' : 'none',
                   }}
                 >
                   {DAY_LABELS[d]}
@@ -387,7 +362,7 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
           </div>
           {/* 에러 발생 시 근무 요일 바로 아래 배치 */}
           {dayError && (
-            <p style={{ fontSize: 12, color: '#C0392B', margin: '6px 0 0', fontWeight: 500 }}>
+            <p className="ui-caption" style={{ color: 'var(--color-danger)', margin: '6px 0 0', fontWeight: 500 }}>
               {dayError}
             </p>
           )}
@@ -418,19 +393,18 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
                   type="button"
                   onClick={() => setShiftType(opt.value)}
                   style={{
-                    border: 'none',
                     borderRadius: 6,
                     padding: '10px 0',
                     fontSize: 13,
                     fontWeight: active ? 700 : 400,
-                    background: active ? '#FFFFFF' : 'transparent',
+                    background: active ? 'var(--color-surface)' : 'transparent',
                     color: active ? 'var(--color-primary)' : 'var(--color-text-muted)',
                     cursor: 'pointer',
                     textAlign: 'center',
                     transition: 'all 0.15s ease',
                     whiteSpace: 'nowrap',
                     letterSpacing: '-0.02em',
-                    boxShadow: active ? '0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 1px rgba(0, 0, 0, 0.04)' : 'none',
+                    border: active ? '1px solid var(--color-border)' : '1px solid transparent',
                   }}
                 >
                   {opt.label}
@@ -442,7 +416,7 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
 
         {/* 일반 에러 메시지 (API 등) */}
         {generalError && (
-          <p style={{ fontSize: 12, color: '#C0392B', margin: 0, fontWeight: 500 }}>{generalError}</p>
+          <p className="ui-caption" style={{ color: 'var(--color-danger)', fontWeight: 500 }}>{generalError}</p>
         )}
 
         {/* 저장 버튼 */}
@@ -458,7 +432,7 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
             border: 'none',
             borderRadius: 8,
             background: 'var(--color-primary)',
-            color: '#FFFFFF',
+            color: 'var(--color-on-primary)',
             cursor: isSaving ? 'not-allowed' : 'pointer',
             opacity: isSaving ? 0.6 : 1,
             marginTop: 6,
@@ -469,76 +443,17 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
         </button>
       </BottomSheet>
 
-      {/* 단건 삭제 확인 다이얼로그 */}
-      {showDeleteConfirmDialog && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.45)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 600,
-          }}
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowDeleteConfirmDialog(false);
-          }}
-        >
-          <div
-            style={{
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 10,
-              padding: '20px 22px',
-              maxWidth: 320,
-              width: '88%',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 16px', color: 'var(--color-neutral-dark)' }}>
-              직원을 삭제하시겠습니까?
-            </h3>
-            <p style={{ fontSize: 13, color: '#555', margin: '0 0 16px', lineHeight: 1.5 }}>
-              기존에 배정된 스케줄 기록은 유지됩니다.
-              <br />
-            </p>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button
-                type="button"
-                onClick={() => setShowDeleteConfirmDialog(false)}
-                disabled={isDeleting}
-                style={{
-                  padding: '7px 14px',
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: 'var(--color-neutral-dark)',
-                  cursor: 'pointer',
-                }}
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmDelete}
-                disabled={isDeleting}
-                style={{
-                  padding: '7px 14px',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: '#C0392B',
-                  cursor: isDeleting ? 'not-allowed' : 'pointer',
-                  opacity: isDeleting ? 0.6 : 1,
-                }}
-              >
-                {isDeleting ? '삭제 중...' : '삭제'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={showDeleteConfirmDialog}
+        title="직원을 삭제하시겠습니까?"
+        description="기존에 배정된 스케줄 기록은 유지됩니다."
+        confirmLabel="삭제"
+        danger
+        pending={isDeleting}
+        zIndex={600}
+        onClose={() => setShowDeleteConfirmDialog(false)}
+        onConfirm={handleConfirmDelete}
+      />
     </>
   );
 }
@@ -656,8 +571,8 @@ export default function EmployeeTable({
         is_minor: newIsMinor,
       });
       resetNewForm();
-    } catch (err: any) {
-      setAddError(err?.message || '저장 실패');
+    } catch (err: unknown) {
+      setAddError(getErrorMessage(err, '저장 실패'));
     } finally {
       setIsSubmittingAdd(false);
     }
@@ -694,8 +609,8 @@ export default function EmployeeTable({
         is_minor: editIsMinor,
       });
       setEditingId(null);
-    } catch (err: any) {
-      setEditError(err?.message || '수정 실패');
+    } catch (err: unknown) {
+      setEditError(getErrorMessage(err, '수정 실패'));
     } finally {
       setIsSubmittingEdit(false);
     }
@@ -733,7 +648,7 @@ export default function EmployeeTable({
     color: 'var(--color-primary)',
     borderBottom: '1px solid var(--color-border)',
     borderRight: '1px solid var(--color-border)',
-    background: '#FAFAFA',
+    background: 'var(--color-surface-subtle)',
     whiteSpace: 'nowrap',
   };
 
@@ -748,7 +663,7 @@ export default function EmployeeTable({
 
   if (isLoading) {
     return (
-      <div style={{ padding: 40, textAlign: 'center', color: '#999', fontSize: 14 }}>
+      <div className="ui-body" style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-muted)' }}>
         불러오는 중...
       </div>
     );
@@ -780,9 +695,9 @@ export default function EmployeeTable({
                 padding: '0 10px',
                 fontSize: 11,
                 fontWeight: 600,
-                background: '#FDF2F1',
-                color: '#C0392B',
-                border: '1px solid #F8D7DA',
+                background: 'var(--color-danger-surface)',
+                color: 'var(--color-danger)',
+                border: '1px solid var(--color-danger-border)',
                 borderRadius: 4,
                 cursor: 'pointer',
                 display: 'inline-flex',
@@ -806,7 +721,7 @@ export default function EmployeeTable({
             fontSize: 12,
             fontWeight: 600,
             background: 'var(--color-primary)',
-            color: '#FFFFFF',
+            color: 'var(--color-on-primary)',
             border: 'none',
             borderRadius: 4,
             cursor: isAdding ? 'not-allowed' : 'pointer',
@@ -841,7 +756,7 @@ export default function EmployeeTable({
             height: 38,
             borderRadius: 8,
             background: 'var(--color-primary)',
-            color: '#FFFFFF',
+            color: 'var(--color-on-primary)',
             border: 'none',
             fontSize: 22,
             display: 'flex',
@@ -896,9 +811,9 @@ export default function EmployeeTable({
                   padding: '3px 8px',
                   fontSize: 11,
                   fontWeight: 600,
-                  background: '#FDF2F1',
-                  color: '#C0392B',
-                  border: '1px solid #F8D7DA',
+                  background: 'var(--color-danger-surface)',
+                  color: 'var(--color-danger)',
+                  border: '1px solid var(--color-danger-border)',
                   borderRadius: 4,
                   cursor: 'pointer',
                 }}
@@ -909,8 +824,8 @@ export default function EmployeeTable({
           </div>
 
           {filteredEmployees.length === 0 && !isAdding && (
-            <p style={{ padding: '32px 16px', textAlign: 'center', fontSize: 13, color: '#bbb', margin: 0 }}>
-              {mobileQuery ? '검색 결과가 없어요' : '등록된 직원이 없습니다. + 버튼을 눌러 직원을 등록해 주세요.'}
+            <p className="ui-label" style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--color-disabled)' }}>
+              {mobileQuery ? '검색 결과가 없어요' : '등록된 직원이 없습니다.'}
             </p>
           )}
           {filteredEmployees.map((emp) => {
@@ -937,7 +852,7 @@ export default function EmployeeTable({
                   boxSizing: 'border-box',
                   transition: 'background-color 0.12s ease',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#F9FAFB')}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--color-surface-subtle)')}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--color-surface)')}
               >
                 {/* 큼직한 아바타 서클: 오른쪽 텍스트들의 시각적 앵커 역할 */}
@@ -981,8 +896,8 @@ export default function EmployeeTable({
                           fontSize: 10,
                           fontWeight: 700,
                           borderRadius: 4,
-                          background: '#FEF3C7',
-                          color: '#D97706',
+                          background: 'var(--color-warning-surface)',
+                          color: 'var(--color-warning)',
                           whiteSpace: 'nowrap',
                           lineHeight: 1.4,
                           flexShrink: 0,
@@ -1022,7 +937,7 @@ export default function EmployeeTable({
                         >
                           {SHIFT_LABELS[shiftType]}
                         </span>
-                        <span style={{ color: '#D5D1C9', fontSize: 10 }}>|</span>
+                        <span style={{ color: 'var(--color-border-strong)', fontSize: 10 }}>|</span>
                       </>
                     )}
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -1085,14 +1000,14 @@ export default function EmployeeTable({
             <tbody>
               {/* 신규 추가 행 */}
               {isAdding && (
-                <tr style={{ background: '#F0F7FF', borderBottom: '2px solid var(--color-primary)' }}>
+                <tr style={{ background: 'var(--color-info-surface)', borderBottom: '2px solid var(--color-primary)' }}>
                   <td style={{ ...tdStyle, width: 32, padding: '2px 1px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center' }}>
                       <button
                         onClick={handleSaveNewSubmit}
                         disabled={isSubmittingAdd}
                         title="저장"
-                        style={{ background: 'var(--color-primary)', color: '#FFFFFF', border: 'none', borderRadius: 2, width: 20, height: 18, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                        style={{ background: 'var(--color-primary)', color: 'var(--color-on-primary)', border: 'none', borderRadius: 2, width: 20, height: 18, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
                       >
                         ✓
                       </button>
@@ -1100,7 +1015,7 @@ export default function EmployeeTable({
                         onClick={() => { resetNewForm(); onCancelAdd(); }}
                         disabled={isSubmittingAdd}
                         title="취소"
-                        style={{ background: '#EEEEEE', color: '#666666', border: 'none', borderRadius: 2, width: 20, height: 18, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                        style={{ background: 'var(--color-muted-bg)', color: 'var(--color-text-subtle)', border: 'none', borderRadius: 2, width: 20, height: 18, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
                       >
                         ✕
                       </button>
@@ -1120,7 +1035,7 @@ export default function EmployeeTable({
                       style={{ padding: '2px 0', fontSize: 12, fontWeight: 600, textAlign: 'center', background: 'transparent' }}
                       autoFocus
                     />
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, color: newIsMinor ? 'var(--color-primary)' : '#888', cursor: 'pointer', marginTop: 2 }}>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, color: newIsMinor ? 'var(--color-primary)' : 'var(--color-text-muted)', cursor: 'pointer', marginTop: 2 }}>
                       <input
                         type="checkbox"
                         checked={newIsMinor}
@@ -1146,7 +1061,7 @@ export default function EmployeeTable({
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                       ))}
                     </select>
-                    {addError && <div style={{ color: '#C0392B', fontSize: 10, marginTop: 1 }}>{addError}</div>}
+                    {addError && <div style={{ color: 'var(--color-danger)', fontSize: 10, marginTop: 1 }}>{addError}</div>}
                   </td>
                 </tr>
               )}
@@ -1154,8 +1069,8 @@ export default function EmployeeTable({
               {/* 빈 상태 */}
               {employees.length === 0 && !isAdding && (
                 <tr>
-                  <td colSpan={5} style={{ padding: '32px 0', textAlign: 'center', color: '#bbb', fontSize: 12, borderBottom: 'none' }}>
-                    등록된 직원이 없습니다. 상단의 + 버튼을 눌러 직원을 등록해 주세요.
+                  <td colSpan={5} style={{ padding: '32px 0', textAlign: 'center', color: 'var(--color-disabled)', fontSize: 12, borderBottom: 'none' }}>
+                    등록된 직원이 없습니다.
                   </td>
                 </tr>
               )}
@@ -1166,14 +1081,14 @@ export default function EmployeeTable({
 
                 if (isEditing) {
                   return (
-                    <tr key={emp.id} style={{ background: '#FFFDF0', borderBottom: '2px solid #E67E22' }}>
+                    <tr key={emp.id} style={{ background: 'var(--color-warning-surface)', borderBottom: '2px solid var(--color-warning)' }}>
                       <td style={{ ...tdStyle, width: 32, padding: '2px 1px' }} onClick={(e) => e.stopPropagation()}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center' }}>
                           <button
                             onClick={() => handleSaveEditSubmit(emp.id)}
                             disabled={isSubmittingEdit}
                             title="저장"
-                            style={{ background: '#E67E22', color: '#FFFFFF', border: 'none', borderRadius: 2, width: 20, height: 18, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                            style={{ background: 'var(--color-warning)', color: 'var(--color-on-primary)', border: 'none', borderRadius: 2, width: 20, height: 18, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
                           >
                             ✓
                           </button>
@@ -1181,7 +1096,7 @@ export default function EmployeeTable({
                             onClick={handleCancelEdit}
                             disabled={isSubmittingEdit}
                             title="취소"
-                            style={{ background: '#EEEEEE', color: '#666666', border: 'none', borderRadius: 2, width: 20, height: 18, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                            style={{ background: 'var(--color-muted-bg)', color: 'var(--color-text-subtle)', border: 'none', borderRadius: 2, width: 20, height: 18, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
                           >
                             ✕
                           </button>
@@ -1200,7 +1115,7 @@ export default function EmployeeTable({
                           style={{ padding: '2px 0', fontSize: 12, fontWeight: 600, textAlign: 'center', background: 'transparent' }}
                           autoFocus
                         />
-                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, color: editIsMinor ? 'var(--color-primary)' : '#888', cursor: 'pointer', marginTop: 2 }}>
+                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, color: editIsMinor ? 'var(--color-primary)' : 'var(--color-text-muted)', cursor: 'pointer', marginTop: 2 }}>
                           <input
                             type="checkbox"
                             checked={editIsMinor}
@@ -1226,7 +1141,7 @@ export default function EmployeeTable({
                             <option key={opt.value} value={opt.value}>{opt.label}</option>
                           ))}
                         </select>
-                        {editError && <div style={{ color: '#C0392B', fontSize: 10, marginTop: 1 }}>{editError}</div>}
+                        {editError && <div style={{ color: 'var(--color-danger)', fontSize: 10, marginTop: 1 }}>{editError}</div>}
                       </td>
                     </tr>
                   );
@@ -1258,8 +1173,8 @@ export default function EmployeeTable({
                               fontSize: 9,
                               fontWeight: 700,
                               borderRadius: 3,
-                              background: '#FEF3C7',
-                              color: '#D97706',
+                              background: 'var(--color-warning-surface)',
+                              color: 'var(--color-warning)',
                               whiteSpace: 'nowrap',
                               lineHeight: 1.2,
                             }}

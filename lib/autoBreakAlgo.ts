@@ -3,7 +3,7 @@
  * Phase 3에서 완전 구현. Phase 0~2에서는 스텁으로 사용.
  */
 
-import type { WorkSchedule, AlgoResult, BreakWarning, OptimizationPolicy } from '@/types';
+import type { WorkSchedule, AlgoResult, BreakWarning } from '@/types';
 import { ALL_ROLES, BREAK_BLOCK_MINUTES, BREAK_BLOCKS } from '@/types';
 
 // ─── 시간 유틸리티 ───────────────────────────────────────────────────────────

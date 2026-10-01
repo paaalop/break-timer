@@ -7,6 +7,7 @@ import { formatDayLabel } from '@/lib/weekUtils';
 import { useScheduleStore } from '@/store/useScheduleStore';
 import EmployeeRow from './EmployeeRow';
 import BottomSheet from '@/components/ui/BottomSheet';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 interface DayCardProps {
   date: string;
@@ -37,7 +38,10 @@ export default function DayCard({ date, schedules, employees }: DayCardProps) {
   }, [schedules]);
 
   // 해당 날짜에 이미 배정된 직원 ID
-  const assignedIds = new Set(schedules.map((s) => s.employee_id));
+  const assignedIds = useMemo(
+    () => new Set(schedules.map((s) => s.employee_id)),
+    [schedules],
+  );
 
   // 배정 가능한 직원 (is_deleted=false, 아직 미배정, 이름 오름차순)
   const availableEmployees = useMemo(
@@ -134,7 +138,7 @@ export default function DayCard({ date, schedules, employees }: DayCardProps) {
             style={{
               fontSize: 12,
               fontWeight: 600,
-              color: isWeekend ? '#C0392B' : 'var(--color-neutral-dark)',
+              color: isWeekend ? 'var(--color-danger)' : 'var(--color-neutral-dark)',
               letterSpacing: '-0.02em',
             }}
           >
@@ -175,7 +179,7 @@ export default function DayCard({ date, schedules, employees }: DayCardProps) {
                   padding: '4px 2px',
                   fontSize: 12,
                   fontWeight: 500,
-                  color: '#777777',
+                  color: 'var(--color-text-subtle)',
                   cursor: 'pointer',
                   letterSpacing: '-0.02em',
                 }}
@@ -193,7 +197,7 @@ export default function DayCard({ date, schedules, employees }: DayCardProps) {
                   padding: '4px 2px',
                   fontSize: 12,
                   fontWeight: 600,
-                  color: '#C0392B',
+                  color: 'var(--color-danger)',
                   cursor: 'pointer',
                   letterSpacing: '-0.02em',
                 }}
@@ -234,7 +238,7 @@ export default function DayCard({ date, schedules, employees }: DayCardProps) {
             style={{
               padding: '28px 16px',
               textAlign: 'center',
-              color: '#bbb',
+              color: 'var(--color-disabled)',
               fontSize: 13,
               margin: 0,
               letterSpacing: '-0.02em',
@@ -312,7 +316,7 @@ export default function DayCard({ date, schedules, employees }: DayCardProps) {
                   style={{
                     padding: '24px 0',
                     textAlign: 'center',
-                    color: '#bbb',
+                    color: 'var(--color-disabled)',
                     fontSize: 12,
                     borderBottom: 'none',
                   }}
@@ -352,7 +356,7 @@ export default function DayCard({ date, schedules, employees }: DayCardProps) {
             left: 16,
             right: 16,
             height: 1,
-            background: 'rgba(0, 0, 0, 0.045)',
+            background: 'var(--color-surface-subtle)',
             pointerEvents: 'none',
           }}
         />
@@ -368,8 +372,8 @@ export default function DayCard({ date, schedules, employees }: DayCardProps) {
             justifyContent: 'center',
             gap: 6,
             fontWeight: 600,
-            background: availableEmployees.length === 0 ? '#FAF9F7' : 'var(--color-muted-bg)',
-            color: availableEmployees.length === 0 ? '#B0A898' : 'var(--color-primary)',
+            background: availableEmployees.length === 0 ? 'var(--color-surface-subtle)' : 'var(--color-muted-bg)',
+            color: availableEmployees.length === 0 ? 'var(--color-text-muted)' : 'var(--color-primary)',
             border: 'none',
             borderRadius: 6,
             cursor: availableEmployees.length === 0 ? 'not-allowed' : 'pointer',
@@ -413,7 +417,7 @@ export default function DayCard({ date, schedules, employees }: DayCardProps) {
   );
 }
 
-// ─── 동기화 바텀시트 (스크롤 잠금 + 아래로 스와이프 닫기) ─────────────────────────
+// ─── 동기화 바텀시트 ───────────────────────────────────────────────────────────
 interface SyncBottomSheetProps {
   date: string;
   onClose: () => void;
@@ -422,12 +426,14 @@ interface SyncBottomSheetProps {
 }
 
 function SyncBottomSheet({ date, onClose, onSync, isSyncing }: SyncBottomSheetProps) {
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+
   return (
-    <BottomSheet
+    <>
+      <BottomSheet
       onClose={onClose}
       maxHeight="90vh"
       padding="10px 20px 32px"
-      historyKey="syncSheet"
     >
       <div style={{ marginBottom: 12, marginTop: 8 }}>
         <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--color-neutral-dark)', margin: 0 }}>
@@ -461,7 +467,7 @@ function SyncBottomSheet({ date, onClose, onSync, isSyncing }: SyncBottomSheetPr
               누락된 직원만 추가
             </span>
           </div>
-          <span style={{ fontSize: 12, color: '#666', lineHeight: 1.5 }}>
+          <span className="ui-caption" style={{ color: 'var(--color-text-subtle)' }}>
             해당 요일의 기존 스케줄은 유지하고,<br />아직 등록되지 않은 직원만 채웁니다.
           </span>
         </button>
@@ -469,13 +475,7 @@ function SyncBottomSheet({ date, onClose, onSync, isSyncing }: SyncBottomSheetPr
         {/* 옵션 2: 전체 기본값으로 재설정 */}
         <button
           type="button"
-          onClick={async () => {
-            if (!confirm(`${formatDayLabel(date)}의 기존 스케줄이 모두 삭제되고 기본값으로 다시 채워집니다. 진행하시겠습니까?`)) {
-              return;
-            }
-            await onSync('reset_all');
-            onClose();
-          }}
+          onClick={() => setShowResetConfirm(true)}
           disabled={isSyncing}
           style={{
             display: 'flex',
@@ -490,11 +490,11 @@ function SyncBottomSheet({ date, onClose, onSync, isSyncing }: SyncBottomSheetPr
           }}
         >
           <div style={{ marginBottom: 4 }}>
-            <span style={{ fontSize: 15, fontWeight: 700, color: '#C0392B' }}>
+            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-danger)' }}>
               전체 기본값으로 재설정
             </span>
           </div>
-          <span style={{ fontSize: 12, color: '#666', lineHeight: 1.5 }}>
+          <span className="ui-caption" style={{ color: 'var(--color-text-subtle)' }}>
             해당 요일의 스케줄을 모두 지우고 새로 배치합니다.
           </span>
         </button>
@@ -509,7 +509,7 @@ function SyncBottomSheet({ date, onClose, onSync, isSyncing }: SyncBottomSheetPr
           marginTop: 14,
           fontSize: 13,
           fontWeight: 600,
-          color: '#666',
+          color: 'var(--color-text-subtle)',
           border: 'none',
           background: 'var(--color-muted-bg)',
           borderRadius: 8,
@@ -518,7 +518,23 @@ function SyncBottomSheet({ date, onClose, onSync, isSyncing }: SyncBottomSheetPr
       >
         취소
       </button>
-    </BottomSheet>
+      </BottomSheet>
+      <ConfirmDialog
+        open={showResetConfirm}
+        title="전체 기본값으로 재설정"
+        description={`${formatDayLabel(date)}의 기존 스케줄이 모두 삭제되고 기본값으로 다시 채워집니다.`}
+        confirmLabel="재설정"
+        danger
+        pending={isSyncing}
+        zIndex={600}
+        onClose={() => setShowResetConfirm(false)}
+        onConfirm={async () => {
+          await onSync('reset_all');
+          setShowResetConfirm(false);
+          onClose();
+        }}
+      />
+    </>
   );
 }
 
@@ -569,7 +585,6 @@ function AddEmployeeBottomSheet({ date, availableEmployees, onClose, onAdd }: Ad
       maxWidth={480}
       maxHeight="88vh"
       padding="12px 20px 24px"
-      historyKey="addEmployeeSheet"
     >
       {/* 헤더 */}
       <div
@@ -621,7 +636,7 @@ function AddEmployeeBottomSheet({ date, availableEmployees, onClose, onAdd }: Ad
         }}
       >
         {availableEmployees.length === 0 ? (
-          <div style={{ padding: '48px 0', textAlign: 'center', color: '#999', fontSize: 13 }}>
+          <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 13 }}>
             배정 가능한 직원이 없습니다.
           </div>
         ) : (
@@ -644,7 +659,7 @@ function AddEmployeeBottomSheet({ date, availableEmployees, onClose, onAdd }: Ad
                   padding: '12px 10px',
                   borderRadius: 8,
                   cursor: 'pointer',
-                  background: isSelected ? '#FAF7F2' : 'transparent',
+                  background: isSelected ? 'var(--color-surface-subtle)' : 'transparent',
                   transition: 'background 0.12s ease',
                   position: 'relative',
                   userSelect: 'none',
@@ -696,7 +711,7 @@ function AddEmployeeBottomSheet({ date, availableEmployees, onClose, onAdd }: Ad
                             fontWeight: 600,
                             borderRadius: 4,
                             background: 'var(--color-muted-bg)',
-                            color: '#777777',
+                            color: 'var(--color-text-subtle)',
                             lineHeight: 1.4,
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
@@ -716,8 +731,8 @@ function AddEmployeeBottomSheet({ date, availableEmployees, onClose, onAdd }: Ad
                             fontSize: 10,
                             fontWeight: 700,
                             borderRadius: 4,
-                            background: '#FEF3C7',
-                            color: '#D97706',
+                            background: 'var(--color-warning-surface)',
+                            color: 'var(--color-warning)',
                             lineHeight: 1.3,
                             whiteSpace: 'nowrap',
                             flexShrink: 0,
@@ -736,20 +751,20 @@ function AddEmployeeBottomSheet({ date, availableEmployees, onClose, onAdd }: Ad
                             style={{
                               fontSize: 12,
                               fontWeight: 700,
-                              color: SHIFT_TEXT_COLOR[shiftType] ?? '#666',
+                              color: SHIFT_TEXT_COLOR[shiftType] ?? 'var(--color-text-subtle)',
                               letterSpacing: '-0.02em',
                             }}
                           >
                             {SHIFT_LABELS[shiftType] ?? shiftType}
                           </span>
                           {shiftDefaults && (
-                            <span style={{ fontSize: 12, color: '#888', letterSpacing: '-0.02em' }}>
+                            <span className="ui-caption" style={{ color: 'var(--color-text-muted)' }}>
                               {shiftDefaults.start}~{shiftDefaults.end}
                             </span>
                           )}
                         </>
                       ) : (
-                        <span style={{ fontSize: 12, color: '#999' }}>기본 근무 미설정</span>
+                        <span className="ui-caption" style={{ color: 'var(--color-text-muted)' }}>기본 근무 미설정</span>
                       )}
                     </div>
                   </div>
@@ -761,7 +776,7 @@ function AddEmployeeBottomSheet({ date, availableEmployees, onClose, onAdd }: Ad
                     width: 22,
                     height: 22,
                     borderRadius: 6,
-                    border: isSelected ? 'none' : '1.5px solid #C8C4BE',
+                    border: isSelected ? 'none' : '1.5px solid var(--color-border-strong)',
                     background: isSelected ? 'var(--color-primary)' : 'transparent',
                     display: 'flex',
                     alignItems: 'center',
@@ -812,7 +827,7 @@ function AddEmployeeBottomSheet({ date, availableEmployees, onClose, onAdd }: Ad
             border: 'none',
             borderRadius: 8,
             background: selectedIds.length > 0 ? 'var(--color-primary)' : 'var(--color-muted-bg)',
-            color: selectedIds.length > 0 ? '#FFFFFF' : '#A0988E',
+            color: selectedIds.length > 0 ? 'var(--color-on-primary)' : 'var(--color-text-muted)',
             cursor: selectedIds.length > 0 ? 'pointer' : 'not-allowed',
             transition: 'all 0.15s ease',
             letterSpacing: '-0.02em',
@@ -837,6 +852,6 @@ const thStyle: React.CSSProperties = {
   color: 'var(--color-primary)',
   borderBottom: 'none',
   borderRight: '1px solid var(--color-border)',
-  background: '#FAFAFA',
+  background: 'var(--color-surface-subtle)',
   whiteSpace: 'nowrap',
 };

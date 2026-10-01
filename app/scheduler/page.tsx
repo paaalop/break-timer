@@ -6,6 +6,8 @@ import WeekGrid from '@/components/scheduler/WeekGrid';
 import ExportScheduleGrid from '@/components/scheduler/ExportScheduleGrid';
 import BreakWarningBanner from '@/components/scheduler/BreakWarningBanner';
 import ManualBreakModal from '@/components/scheduler/ManualBreakModal';
+import DateNavigator from '@/components/ui/DateNavigator';
+import PageHeader from '@/components/ui/PageHeader';
 import { useScheduleStore } from '@/store/useScheduleStore';
 import { useEmployeeStore } from '@/store/useEmployeeStore';
 import { shiftWeek, formatWeekRange } from '@/lib/weekUtils';
@@ -27,12 +29,6 @@ export default function SchedulerPage() {
   const captureRef = useRef<HTMLDivElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
   const [manualBreakTarget, setManualBreakTarget] = useState<WorkSchedule | null>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   useEffect(() => {
     fetchEmployees();
   }, [fetchEmployees]);
@@ -69,7 +65,7 @@ export default function SchedulerPage() {
       const dataUrl = await toPng(targetElement, {
         cacheBust: true,
         pixelRatio: 2,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--color-surface').trim(),
         skipFonts: true,
         width: targetElement.offsetWidth,
         height: targetElement.offsetHeight,
@@ -94,18 +90,15 @@ export default function SchedulerPage() {
   }, [selectedWeekStart, fetchSchedules]);
 
   return (
-    <div style={{ minHeight: '100vh', background: '#FFFFFF' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--color-surface)' }}>
       <Header />
 
       <main className="max-w-[1400px] mx-auto px-0 pt-3 pb-20 sm:px-8 md:px-10 sm:pt-4 sm:pb-24">
-        {/* 페이지 헤더 */}
+        <PageHeader title="주간 근무표" />
+        {/* 페이지 도구 모음 */}
         <div className="px-6 sm:px-4" style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 36 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <h1 style={{ fontSize: 20, fontWeight: 700, lineHeight: '28px', color: 'var(--color-neutral-dark)', margin: 0 }}>
-                주간 근무표
-              </h1>
-
               {/* 이미지 추출 버튼 (제목 우측, 연한 배경 텍스트) */}
               <button
                 id="download-schedule-btn"
@@ -128,34 +121,14 @@ export default function SchedulerPage() {
               </button>
 
               {/* 데스크톱 주 탐색 네비게이터 (md: 이상 표시) */}
-              <div className="hidden md:flex items-center gap-1.5 ml-1">
-                <button
-                  id="prev-week-btn"
-                  onClick={handlePrevWeek}
-                  style={navButtonStyle}
-                  aria-label="이전 주"
-                >
-                  &lt; 이전주
-                </button>
-                <span
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: 'var(--color-neutral-dark)',
-                    minWidth: 120,
-                    textAlign: 'center',
-                  }}
-                >
-                  {formatWeekRange(selectedWeekStart)}
-                </span>
-                <button
-                  id="next-week-btn"
-                  onClick={handleNextWeek}
-                  style={navButtonStyle}
-                  aria-label="다음 주"
-                >
-                  다음주 &gt;
-                </button>
+              <div className="hidden md:block">
+                <DateNavigator
+                  label={formatWeekRange(selectedWeekStart)}
+                  onPrevious={handlePrevWeek}
+                  onNext={handleNextWeek}
+                  previousLabel="이전 주"
+                  nextLabel="다음 주"
+                />
               </div>
             </div>
 
@@ -166,8 +139,7 @@ export default function SchedulerPage() {
                 id="autofill-schedule-btn"
                 className="hidden md:block"
                 onClick={() => autoFillWeekSchedules(selectedWeekStart, employees)}
-                disabled={!mounted || isLoading || employees.length === 0}
-                suppressHydrationWarning
+                disabled={isLoading || employees.length === 0}
                 style={{
                   padding: '6px 12px',
                   fontSize: 12,
@@ -175,7 +147,7 @@ export default function SchedulerPage() {
                   border: 'none',
                   borderRadius: 6,
                   background: 'var(--color-primary)',
-                  color: '#FFFFFF',
+                  color: 'var(--color-on-primary)',
                   cursor: employees.length === 0 ? 'not-allowed' : 'pointer',
                   opacity: employees.length === 0 ? 0.5 : 1,
                 }}
@@ -192,12 +164,12 @@ export default function SchedulerPage() {
           <div
             className="mx-4 sm:mx-0"
             style={{
-              border: '1px solid #C0392B',
-              background: '#FDF2F1',
+              border: '1px solid var(--color-danger)',
+              background: 'var(--color-danger-surface)',
               padding: '10px 16px',
               borderRadius: 8,
               fontSize: 13,
-              color: '#C0392B',
+              color: 'var(--color-danger)',
               marginBottom: 16,
             }}
           >
@@ -214,7 +186,7 @@ export default function SchedulerPage() {
 
         {/* 주간 그리드 */}
         {isLoading && schedules.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 60, fontSize: 14, color: '#999' }}>
+          <div style={{ textAlign: 'center', padding: 60, fontSize: 14, color: 'var(--color-text-muted)' }}>
             불러오는 중...
           </div>
         ) : (
@@ -247,7 +219,7 @@ export default function SchedulerPage() {
                   <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-neutral-dark)' }}>
                     이번 주 등록된 스케줄이 없습니다
                   </div>
-                  <div style={{ fontSize: 13, color: '#777', maxWidth: 480, lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 13, color: 'var(--color-text-subtle)', maxWidth: 480, lineHeight: 1.5 }}>
                     등록된 직원 정보를 기반으로<br />이번 주 스케줄을 한 번에 채울 수 있습니다.
                   </div>
                   <button
@@ -262,7 +234,7 @@ export default function SchedulerPage() {
                       border: 'none',
                       borderRadius: 8,
                       background: 'var(--color-primary)',
-                      color: '#FFFFFF',
+                      color: 'var(--color-on-primary)',
                       cursor: employees.length === 0 ? 'not-allowed' : 'pointer',
                       opacity: employees.length === 0 ? 0.5 : 1,
                     }}
@@ -304,14 +276,3 @@ export default function SchedulerPage() {
     </div>
   );
 }
-
-const navButtonStyle: React.CSSProperties = {
-  padding: '5px 10px',
-  fontSize: 12,
-  fontWeight: 500,
-  border: '1px solid var(--color-border)',
-  borderRadius: 4,
-  background: 'var(--color-surface)',
-  color: 'var(--color-neutral-dark)',
-  cursor: 'pointer',
-};

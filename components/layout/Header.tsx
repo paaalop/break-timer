@@ -48,7 +48,7 @@ export default function Header({ isDark = false, hideSignOut = false, rightActio
                 fontWeight: 400,
                 border: 'none',
                 background: 'transparent',
-                color: isDark ? 'rgba(255, 255, 255, 0.7)' : 'var(--color-text-muted)',
+              color: isDark ? 'var(--color-on-primary-muted)' : 'var(--color-text-muted)',
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
                 letterSpacing: '-0.02em',
@@ -56,10 +56,10 @@ export default function Header({ isDark = false, hideSignOut = false, rightActio
                 transition: 'color 0.15s ease',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.color = isDark ? '#FFFFFF' : '#222222';
+              e.currentTarget.style.color = isDark ? 'var(--color-on-primary)' : 'var(--color-neutral-dark)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.color = isDark ? 'rgba(255, 255, 255, 0.7)' : 'var(--color-text-muted)';
+              e.currentTarget.style.color = isDark ? 'var(--color-on-primary-muted)' : 'var(--color-text-muted)';
               }}
             >
               로그아웃
@@ -77,7 +77,7 @@ export default function Header({ isDark = false, hideSignOut = false, rightActio
           right: 0,
           zIndex: 200,
           background: 'var(--color-primary)',
-          borderTop: '1px solid rgba(255, 255, 255, 0.12)',
+          borderTop: '1px solid var(--color-on-primary-subtle)',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         }}
       >
@@ -104,8 +104,8 @@ export default function Header({ isDark = false, hideSignOut = false, rightActio
                   justifyContent: 'center',
                   fontSize: 13,
                   fontWeight: isActive ? 700 : 400,
-                  color: isActive ? '#FFFFFF' : 'rgba(255, 255, 255, 0.65)',
-                  borderTop: isActive ? '3px solid #FFFFFF' : '3px solid transparent',
+                  color: isActive ? 'var(--color-on-primary)' : 'var(--color-on-primary-muted)',
+                  borderTop: isActive ? '3px solid var(--color-on-primary)' : '3px solid transparent',
                   borderBottom: '3px solid transparent',
                   textDecoration: 'none',
                   whiteSpace: 'nowrap',

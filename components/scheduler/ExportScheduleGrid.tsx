@@ -1,7 +1,7 @@
 'use client';
 
 import { forwardRef } from 'react';
-import type { WorkSchedule, Employee, ShiftType } from '@/types';
+import type { WorkSchedule, Employee } from '@/types';
 import { SHIFT_LABELS, SHIFT_TEXT_COLOR } from '@/lib/constants';
 import { getWeekDates, formatDayLabel, formatWeekRange } from '@/lib/weekUtils';
 
@@ -25,12 +25,12 @@ const ExportScheduleGrid = forwardRef<HTMLDivElement, ExportScheduleGridProps>(
         ref={ref}
         style={{
           width: 360,
-          background: '#FFFFFF',
+          background: 'var(--color-surface)',
           padding: '10px 8px 12px',
           boxSizing: 'border-box',
           fontFamily:
             'Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif',
-          color: '#333',
+          color: 'var(--color-neutral-dark)',
           fontVariantLigatures: 'none',
           fontFeatureSettings: '"liga" 0',
           textRendering: 'optimizeLegibility',
@@ -48,7 +48,7 @@ const ExportScheduleGrid = forwardRef<HTMLDivElement, ExportScheduleGridProps>(
             justifyContent: 'space-between',
             marginBottom: 7,
             paddingBottom: 5,
-            borderBottom: '1.5px solid #5C4033',
+            borderBottom: '1.5px solid var(--color-primary)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
@@ -56,7 +56,7 @@ const ExportScheduleGrid = forwardRef<HTMLDivElement, ExportScheduleGridProps>(
               style={{
                 fontSize: 14,
                 fontWeight: 800,
-                color: '#5C4033',
+                color: 'var(--color-primary)',
                 lineHeight: 1.2,
                 whiteSpace: 'nowrap',
               }}
@@ -67,7 +67,7 @@ const ExportScheduleGrid = forwardRef<HTMLDivElement, ExportScheduleGridProps>(
               style={{
                 fontSize: 11,
                 fontWeight: 600,
-                color: '#666',
+                color: 'var(--color-text-subtle)',
                 lineHeight: 1.2,
                 whiteSpace: 'nowrap',
               }}
@@ -79,7 +79,7 @@ const ExportScheduleGrid = forwardRef<HTMLDivElement, ExportScheduleGridProps>(
             style={{
               fontSize: 10,
               fontWeight: 500,
-              color: '#888',
+              color: 'var(--color-text-muted)',
               lineHeight: 1.2,
               whiteSpace: 'nowrap',
             }}
@@ -114,9 +114,9 @@ const ExportScheduleGrid = forwardRef<HTMLDivElement, ExportScheduleGridProps>(
               <div
                 key={date}
                 style={{
-                  border: '1px solid #E5E0D8',
+                  border: '1px solid var(--color-border)',
                   borderRadius: 6,
-                  background: '#FFFFFF',
+                  background: 'var(--color-surface)',
                   overflow: 'hidden',
                   display: 'flex',
                   flexDirection: 'column',
@@ -131,8 +131,8 @@ const ExportScheduleGrid = forwardRef<HTMLDivElement, ExportScheduleGridProps>(
                     justifyContent: 'space-between',
                     height: 24,
                     padding: '0 7px',
-                    borderBottom: '1px solid #E5E0D8',
-                    background: '#F7F5F2',
+                    borderBottom: '1px solid var(--color-border)',
+                    background: 'var(--color-surface-subtle)',
                     boxSizing: 'border-box',
                   }}
                 >
@@ -140,7 +140,7 @@ const ExportScheduleGrid = forwardRef<HTMLDivElement, ExportScheduleGridProps>(
                     style={{
                       fontSize: 11,
                       fontWeight: 700,
-                      color: isWeekend ? '#C0392B' : '#333',
+                      color: isWeekend ? 'var(--color-danger)' : 'var(--color-neutral-dark)',
                       letterSpacing: '-0.02em',
                       lineHeight: 1.2,
                       whiteSpace: 'nowrap',
@@ -152,7 +152,7 @@ const ExportScheduleGrid = forwardRef<HTMLDivElement, ExportScheduleGridProps>(
                     style={{
                       fontSize: 9.5,
                       fontWeight: 500,
-                      color: '#999',
+                      color: 'var(--color-text-muted)',
                       lineHeight: 1.2,
                       whiteSpace: 'nowrap',
                     }}
@@ -170,7 +170,7 @@ const ExportScheduleGrid = forwardRef<HTMLDivElement, ExportScheduleGridProps>(
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        color: '#bbb',
+                        color: 'var(--color-disabled)',
                         fontSize: 10.5,
                         whiteSpace: 'nowrap',
                         minHeight: 80,
@@ -188,7 +188,7 @@ const ExportScheduleGrid = forwardRef<HTMLDivElement, ExportScheduleGridProps>(
                           alignItems: 'center',
                           height: 23,
                           padding: '0 7px',
-                          borderBottom: idx === daySchedules.length - 1 ? 'none' : '1px solid #F0EDE8',
+                          borderBottom: idx === daySchedules.length - 1 ? 'none' : '1px solid var(--color-muted-bg)',
                           background: 'transparent',
                           gap: 4,
                           boxSizing: 'border-box',
@@ -199,7 +199,7 @@ const ExportScheduleGrid = forwardRef<HTMLDivElement, ExportScheduleGridProps>(
                           style={{
                             fontSize: 10.5,
                             fontWeight: 600,
-                            color: '#333',
+                            color: 'var(--color-neutral-dark)',
                             lineHeight: 1.2,
                             flex: '0 0 auto',
                             whiteSpace: 'nowrap',
@@ -213,7 +213,7 @@ const ExportScheduleGrid = forwardRef<HTMLDivElement, ExportScheduleGridProps>(
                           style={{
                             fontSize: 9.5,
                             fontWeight: 700,
-                            color: SHIFT_TEXT_COLOR[s.shift_type] ?? '#555',
+                            color: SHIFT_TEXT_COLOR[s.shift_type] ?? 'var(--color-text-subtle)',
                             lineHeight: 1.2,
                             flex: '0 0 auto',
                             whiteSpace: 'nowrap',
@@ -226,7 +226,7 @@ const ExportScheduleGrid = forwardRef<HTMLDivElement, ExportScheduleGridProps>(
                         <span
                           style={{
                             fontSize: 9.5,
-                            color: '#666',
+                            color: 'var(--color-text-subtle)',
                             lineHeight: 1.2,
                             letterSpacing: '-0.02em',
                             marginLeft: 'auto',
@@ -246,9 +246,9 @@ const ExportScheduleGrid = forwardRef<HTMLDivElement, ExportScheduleGridProps>(
           {/* 8번째 카드: 안내사항 */}
           <div
             style={{
-              border: '1px solid #E5E0D8',
+              border: '1px solid var(--color-border)',
               borderRadius: 6,
-              background: '#FBF9F6',
+              background: 'var(--color-surface-subtle)',
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column',
@@ -259,8 +259,8 @@ const ExportScheduleGrid = forwardRef<HTMLDivElement, ExportScheduleGridProps>(
               style={{
                 height: 24,
                 padding: '0 7px',
-                borderBottom: '1px solid #E5E0D8',
-                background: '#F2EFEA',
+                borderBottom: '1px solid var(--color-border)',
+                background: 'var(--color-muted-bg)',
                 display: 'flex',
                 alignItems: 'center',
                 boxSizing: 'border-box',
@@ -270,7 +270,7 @@ const ExportScheduleGrid = forwardRef<HTMLDivElement, ExportScheduleGridProps>(
                 style={{
                   fontSize: 11,
                   fontWeight: 700,
-                  color: '#5C4033',
+                  color: 'var(--color-primary)',
                   lineHeight: 1.2,
                   whiteSpace: 'nowrap',
                 }}
@@ -282,7 +282,7 @@ const ExportScheduleGrid = forwardRef<HTMLDivElement, ExportScheduleGridProps>(
               style={{
                 padding: '7px 7px',
                 fontSize: 9.5,
-                color: '#666',
+                color: 'var(--color-text-subtle)',
                 lineHeight: 1.45,
                 display: 'flex',
                 flexDirection: 'column',
@@ -290,10 +290,10 @@ const ExportScheduleGrid = forwardRef<HTMLDivElement, ExportScheduleGridProps>(
               }}
             >
               <div style={{ wordBreak: 'keep-all' }}>
-                <strong style={{ color: '#5C4033', display: 'block', marginBottom: 2, fontSize: 9.5 }}>
+                <strong className="ui-data-micro" style={{ color: 'var(--color-primary)', display: 'block', marginBottom: 2 }}>
                   공지
                 </strong>
-                <div style={{ whiteSpace: 'nowrap', color: '#777' }}>
+                <div style={{ whiteSpace: 'nowrap', color: 'var(--color-text-subtle)' }}>
                   근무 변경 및 대타는 사전 연락 필수
                 </div>
               </div>

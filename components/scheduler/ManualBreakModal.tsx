@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
+import Dialog from '@/components/ui/Dialog';
 import type { WorkSchedule } from '@/types';
 import { useScheduleStore } from '@/store/useScheduleStore';
 
@@ -10,6 +11,7 @@ interface ManualBreakModalProps {
 }
 
 export default function ManualBreakModal({ schedule, onClose }: ManualBreakModalProps) {
+  const titleId = useId();
   const { setManualBreak, error } = useScheduleStore();
   const [start, setStart] = useState((schedule.break_start_time ?? '14:00').slice(0, 5));
   const [end, setEnd] = useState((schedule.break_end_time ?? '15:00').slice(0, 5));
@@ -31,8 +33,8 @@ export default function ManualBreakModal({ schedule, onClose }: ManualBreakModal
     try {
       await setManualBreak(schedule.id, start, end);
       onClose();
-    } catch (err) {
-      setLocalError(err instanceof Error ? err.message : '저장 실패');
+    } catch (saveError) {
+      setLocalError(saveError instanceof Error ? saveError.message : '저장 실패');
     } finally {
       setIsSaving(false);
     }
@@ -41,148 +43,46 @@ export default function ManualBreakModal({ schedule, onClose }: ManualBreakModal
   const displayError = localError ?? error;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.35)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 300,
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          background: 'var(--color-surface)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 6,
-          padding: 28,
-          maxWidth: 340,
-          width: '90%',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: 16,
-            borderBottom: '1px solid var(--color-border)',
-            paddingBottom: 12,
-          }}
-        >
-          <h2 style={{ fontSize: 15, fontWeight: 700 }}>휴게 시간 수동 수정</h2>
-          <button
-            onClick={onClose}
-            style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#888' }}
-          >
-            ×
-          </button>
+    <Dialog open onClose={onClose} titleId={titleId} maxWidth={360}>
+      <div style={{ padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+        <div>
+          <h2 id={titleId} className="ui-overlay-title">휴게 시간 수동 수정</h2>
+          <p className="ui-caption" style={{ color: 'var(--color-text-muted)', marginTop: 'var(--space-1)' }}>
+            {schedule.employee?.name} — {schedule.work_date}
+          </p>
         </div>
 
-        <p style={{ fontSize: 13, color: '#888', marginBottom: 16 }}>
-          {schedule.employee?.name} — {schedule.work_date}
-        </p>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
-          <div>
-            <label
-              htmlFor="manual-break-start"
-              style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--color-primary)', marginBottom: 4 }}
-            >
-              휴게 시작
-            </label>
-            <input
-              id="manual-break-start"
-              type="time"
-              value={start}
-              onChange={(e) => setStart(e.target.value)}
-              style={inputStyle}
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="manual-break-end"
-              style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--color-primary)', marginBottom: 4 }}
-            >
-              휴게 종료
-            </label>
-            <input
-              id="manual-break-end"
-              type="time"
-              value={end}
-              onChange={(e) => setEnd(e.target.value)}
-              style={inputStyle}
-            />
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+          <label className="ui-label" htmlFor="manual-break-start">
+            휴게 시작
+            <input id="manual-break-start" type="time" value={start} onChange={(event) => setStart(event.target.value)} style={inputStyle} />
+          </label>
+          <label className="ui-label" htmlFor="manual-break-end">
+            휴게 종료
+            <input id="manual-break-end" type="time" value={end} onChange={(event) => setEnd(event.target.value)} style={inputStyle} />
+          </label>
         </div>
 
-        {displayError && (
-          <div
-            style={{
-              border: '1px solid #C0392B',
-              background: '#FDF2F1',
-              padding: '8px 12px',
-              borderRadius: 4,
-              fontSize: 13,
-              color: '#C0392B',
-              marginBottom: 16,
-            }}
-          >
-            {displayError}
-          </div>
-        )}
+        {displayError ? <div className="ui-alert ui-alert--danger">{displayError}</div> : null}
 
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            onClick={handleSave}
-            disabled={isSaving}
-            style={{
-              flex: 1,
-              padding: '9px 0',
-              fontSize: 14,
-              fontWeight: 600,
-              background: 'var(--color-primary)',
-              color: '#FFFFFF',
-              border: 'none',
-              borderRadius: 4,
-              cursor: isSaving ? 'not-allowed' : 'pointer',
-              opacity: isSaving ? 0.7 : 1,
-            }}
-          >
+        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+          <button type="button" className="ui-button ui-button--primary" style={{ flex: 1 }} onClick={() => void handleSave()} disabled={isSaving}>
             {isSaving ? '저장 중...' : '저장'}
           </button>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '9px 16px',
-              fontSize: 14,
-              border: '1px solid var(--color-border)',
-              background: 'var(--color-surface)',
-              color: 'var(--color-neutral-dark)',
-              borderRadius: 4,
-              cursor: 'pointer',
-            }}
-          >
-            취소
-          </button>
+          <button type="button" className="ui-button ui-button--secondary" onClick={onClose} disabled={isSaving}>취소</button>
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 }
 
 const inputStyle: React.CSSProperties = {
   width: '100%',
-  padding: '8px 12px',
-  fontSize: 14,
+  marginTop: 'var(--space-1)',
+  padding: 'var(--space-2) var(--space-3)',
   border: '1px solid var(--color-border)',
-  borderRadius: 4,
+  borderRadius: 'var(--radius-sm)',
   background: 'var(--color-surface)',
   color: 'var(--color-neutral-dark)',
   outline: 'none',
-  boxSizing: 'border-box',
 };
