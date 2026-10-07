@@ -84,7 +84,7 @@ export default function EmployeesPage() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--color-surface)' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--color-bg)' }}>
       <Header />
 
       <main className="max-w-[1400px] mx-auto px-0 pt-3 pb-20 sm:px-8 md:px-10 sm:pt-4 sm:pb-24">

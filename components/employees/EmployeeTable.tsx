@@ -2,9 +2,10 @@
 
 import { useState, useMemo } from 'react';
 import type { Employee, Role, DayOfWeek, ShiftType, CreateEmployeeInput, UpdateEmployeeInput } from '@/types';
-import { ROLE_OPTIONS, ROLE_LABELS, DAY_OPTIONS, DAY_LABELS, SHIFT_OPTIONS, SHIFT_LABELS, SHIFT_TEXT_COLOR } from '@/lib/constants';
+import { ROLE_OPTIONS, ROLE_LABELS, DAY_OPTIONS, DAY_LABELS, SHIFT_LABELS, SHIFT_TEXT_COLOR } from '@/lib/constants';
 import MultiSelectDropdown from '@/components/ui/MultiSelectDropdown';
 import Badge from '@/components/ui/Badge';
+import ShiftTypePicker from '@/components/ui/ShiftTypePicker';
 import Input from '@/components/ui/Input';
 import BottomSheet from '@/components/ui/BottomSheet';
 import Avatar from '@/components/ui/Avatar';
@@ -373,45 +374,7 @@ function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmp
           <label style={labelStyle}>
             근무 타입
           </label>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              width: '100%',
-              padding: 3,
-              borderRadius: 8,
-              background: 'var(--color-muted-bg)',
-              boxSizing: 'border-box',
-              gap: 3,
-            }}
-          >
-            {SHIFT_OPTIONS.map((opt) => {
-              const active = shiftType === opt.value;
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setShiftType(opt.value)}
-                  style={{
-                    borderRadius: 6,
-                    padding: '10px 0',
-                    fontSize: 13,
-                    fontWeight: active ? 700 : 400,
-                    background: active ? 'var(--color-surface)' : 'transparent',
-                    color: active ? 'var(--color-primary)' : 'var(--color-text-muted)',
-                    cursor: 'pointer',
-                    textAlign: 'center',
-                    transition: 'all 0.15s ease',
-                    whiteSpace: 'nowrap',
-                    letterSpacing: '-0.02em',
-                    border: active ? '1px solid var(--color-border)' : '1px solid transparent',
-                  }}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
+          <ShiftTypePicker value={shiftType} onChange={setShiftType} showFixedTime disabled={isSaving} />
         </div>
 
         {/* 일반 에러 메시지 (API 등) */}
@@ -1052,15 +1015,7 @@ export default function EmployeeTable({
                     <MultiSelectDropdown options={DAY_OPTIONS} selected={newDays} onChange={setNewDays} placeholder="요일" />
                   </td>
                   <td style={{ ...tdStyle, borderRight: 'none' }}>
-                    <select
-                      value={newShifts[0] ?? 'open'}
-                      onChange={(e) => setNewShifts([e.target.value as ShiftType])}
-                      style={{ width: '100%', minHeight: 26, border: 'none', outline: 'none', background: 'transparent', fontSize: 11, fontFamily: 'inherit', fontWeight: 400, color: 'var(--color-neutral-dark)', textAlign: 'center', textAlignLast: 'center', cursor: 'pointer', padding: '2px 4px', boxSizing: 'border-box' }}
-                    >
-                      {SHIFT_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
+                    <ShiftTypePicker value={newShifts[0] ?? 'open'} onChange={(shift) => setNewShifts([shift])} compact showFixedTime disabled={isSubmittingAdd} />
                     {addError && <div style={{ color: 'var(--color-danger)', fontSize: 10, marginTop: 1 }}>{addError}</div>}
                   </td>
                 </tr>
@@ -1132,15 +1087,7 @@ export default function EmployeeTable({
                         <MultiSelectDropdown options={DAY_OPTIONS} selected={editDays} onChange={setEditDays} placeholder="요일" />
                       </td>
                       <td style={{ ...tdStyle, borderRight: 'none' }}>
-                        <select
-                          value={editShifts[0] ?? 'open'}
-                          onChange={(e) => setEditShifts([e.target.value as ShiftType])}
-                          style={{ width: '100%', minHeight: 26, border: 'none', outline: 'none', background: 'transparent', fontSize: 11, fontFamily: 'inherit', fontWeight: 400, color: 'var(--color-neutral-dark)', textAlign: 'center', textAlignLast: 'center', cursor: 'pointer', padding: '2px 4px', boxSizing: 'border-box' }}
-                        >
-                          {SHIFT_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                          ))}
-                        </select>
+                        <ShiftTypePicker value={editShifts[0] ?? 'open'} onChange={(shift) => setEditShifts([shift])} compact showFixedTime disabled={isSubmittingEdit} />
                         {editError && <div style={{ color: 'var(--color-danger)', fontSize: 10, marginTop: 1 }}>{editError}</div>}
                       </td>
                     </tr>

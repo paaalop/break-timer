@@ -90,36 +90,38 @@ export default function SchedulerPage() {
   }, [selectedWeekStart, fetchSchedules]);
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--color-surface)' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--color-bg)' }}>
       <Header />
 
       <main className="max-w-[1400px] mx-auto px-0 pt-3 pb-20 sm:px-8 md:px-10 sm:pt-4 sm:pb-24">
-        <PageHeader title="주간 근무표" />
+        <PageHeader
+          title="주간 근무표"
+          actions={(
+            <button
+              id="download-schedule-btn"
+              onClick={handleDownload}
+              title="주간 근무표 이미지 저장"
+              style={{
+                padding: '5px 10px',
+                fontSize: 12,
+                fontWeight: 600,
+                border: 'none',
+                borderRadius: 6,
+                background: 'var(--color-muted-bg)',
+                color: 'var(--color-primary)',
+                cursor: 'pointer',
+                letterSpacing: '-0.02em',
+              }}
+              className="hover:bg-[var(--color-muted-bg-hover)] transition-colors"
+            >
+              이미지 추출
+            </button>
+          )}
+        />
         {/* 페이지 도구 모음 */}
-        <div className="px-6 sm:px-4" style={{ marginBottom: 16 }}>
+        <div className="hidden md:block px-6 sm:px-4" style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 36 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              {/* 이미지 추출 버튼 (제목 우측, 연한 배경 텍스트) */}
-              <button
-                id="download-schedule-btn"
-                onClick={handleDownload}
-                title="주간 근무표 이미지 저장"
-                style={{
-                  padding: '5px 10px',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  border: 'none',
-                  borderRadius: 6,
-                  background: 'var(--color-muted-bg)',
-                  color: 'var(--color-primary)',
-                  cursor: 'pointer',
-                  letterSpacing: '-0.02em',
-                }}
-                className="hover:bg-[var(--color-muted-bg-hover)] transition-colors"
-              >
-                이미지 추출
-              </button>
-
               {/* 데스크톱 주 탐색 네비게이터 (md: 이상 표시) */}
               <div className="hidden md:block">
                 <DateNavigator

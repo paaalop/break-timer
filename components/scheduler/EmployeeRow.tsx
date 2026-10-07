@@ -2,16 +2,16 @@
 
 import { useState, useRef } from 'react';
 import type { WorkSchedule, ShiftType } from '@/types';
-import { SHIFT_DEFAULTS, SHIFT_LABELS, SHIFT_OPTIONS, ROLE_LABELS, SHIFT_TEXT_COLOR } from '@/lib/constants';
+import { SHIFT_LABELS, ROLE_LABELS, SHIFT_TEXT_COLOR, getShiftTimes, isFixedPartShift } from '@/lib/constants';
 import { useScheduleStore } from '@/store/useScheduleStore';
 import BottomSheet from '@/components/ui/BottomSheet';
+import ShiftTypePicker from '@/components/ui/ShiftTypePicker';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import TimeWheelPickerModal from '@/components/ui/TimeWheelPickerModal';
 import { formatTimeHHMM } from '@/lib/timeUtils';
 import { isBreakOutsideWorkHours } from '@/lib/scheduleValidation';
 import BreakWarningBanner from './BreakWarningBanner';
 
-const SHIFT_TYPES = SHIFT_OPTIONS.map((opt) => opt.value);
 
 // ─── 아바타 ↔ 체크박스 3D 뒤집힘(Flip) 컴포넌트 ──────────────────────────────
 interface FlipAvatarCheckboxProps {
@@ -136,8 +136,8 @@ function ShiftBottomSheet({ schedule, onClose }: ShiftBottomSheetProps) {
 
   // ── 근무 타입 변경 ─────────────────────────────────────────────────────────
   const handleShiftSelect = (newShift: ShiftType) => {
+    const defaults = getShiftTimes(newShift, shiftType, { start: startTime, end: endTime });
     setShiftType(newShift);
-    const defaults = SHIFT_DEFAULTS[newShift];
     setStartTime(defaults.start);
     setEndTime(defaults.end);
   };
@@ -231,48 +231,16 @@ function ShiftBottomSheet({ schedule, onClose }: ShiftBottomSheetProps) {
           <label style={labelStyle}>
             근무 타입
           </label>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              width: '100%',
-              padding: 3,
-              borderRadius: 8,
-              background: 'var(--color-muted-bg)',
-              boxSizing: 'border-box',
-              gap: 3,
-            }}
-          >
-            {SHIFT_OPTIONS.map((opt) => {
-              const active = shiftType === opt.value;
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => handleShiftSelect(opt.value as ShiftType)}
-                  style={{
-                    borderRadius: 6,
-                    padding: '10px 0',
-                    fontSize: 13,
-                    fontWeight: active ? 700 : 500,
-                    background: active ? 'var(--color-surface)' : 'transparent',
-                    color: active ? 'var(--color-primary)' : 'var(--color-text-subtle)',
-                    cursor: 'pointer',
-                    textAlign: 'center',
-                    transition: 'all 0.15s ease',
-                    whiteSpace: 'nowrap',
-                    letterSpacing: '-0.02em',
-                    border: active ? '1px solid var(--color-border)' : '1px solid transparent',
-                  }}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
+          <ShiftTypePicker value={shiftType} onChange={handleShiftSelect} disabled={isSaving} />
         </div>
 
         {/* 파트타임 시간 선택 */}
+        {isFixedPartShift(shiftType) && <div>
+          <label style={labelStyle}>근무 시간</label>
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-neutral-dark)', fontVariantNumeric: 'tabular-nums' }}>
+            {startTime} ~ {endTime}
+          </div>
+        </div>}
         {isPartTime && (
           <div>
             <label style={labelStyle}>근무 시간</label>
@@ -424,7 +392,7 @@ function EmployeeRowContent({
   variant,
 }: EmployeeRowProps) {
   const { upsertSchedule } = useScheduleStore();
-  const [shiftType, setShiftType] = useState<ShiftType>(schedule.shift_type);
+  const shiftType = schedule.shift_type;
   const [startTime, setStartTime] = useState(schedule.start_time);
   const [endTime, setEndTime] = useState(schedule.end_time);
   const [isSaving, setIsSaving] = useState(false);
@@ -491,30 +459,6 @@ function EmployeeRowContent({
   };
 
   // 데스크톱 전용 핸들러 ─────────────────────────────────────────────────────
-  const handleShiftChange = async (newShift: ShiftType) => {
-    setShiftType(newShift);
-    const defaults = SHIFT_DEFAULTS[newShift];
-    const newStart = defaults.start;
-    const newEnd = defaults.end;
-    setStartTime(newStart);
-    setEndTime(newEnd);
-    setIsSaving(true);
-    try {
-      await upsertSchedule({
-        id: schedule.id,
-        employee_id: schedule.employee_id,
-        work_date: schedule.work_date,
-        shift_type: newShift,
-        start_time: newStart,
-        end_time: newEnd,
-        break_start_time: schedule.break_start_time,
-        break_end_time: schedule.break_end_time,
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const handleStartTimeChange = async (newStart: string) => {
     setStartTime(newStart);
     setIsSaving(true);
@@ -793,31 +737,13 @@ function EmployeeRowContent({
               </div>
             </td>
 
-            {/* 근무 타입 드롭다운 */}
+            {/* 근무 타입: 공통 수정 시트에서 선택 */}
             <td style={{ ...tdStyle, width: '24%' }}>
-              <select
-                value={shiftType}
-                onChange={(e) => handleShiftChange(e.target.value as ShiftType)}
-                disabled={isSaving}
-                style={{
-                  width: '100%',
-                  border: 'none',
-                  outline: 'none',
-                  background: 'transparent',
-                  fontSize: 12,
-                  color: 'var(--color-neutral-dark)',
-                  textAlign: 'center',
-                  textAlignLast: 'center',
-                  cursor: 'pointer',
-                  padding: '3px 0',
-                }}
-              >
-                {SHIFT_TYPES.map((s) => (
-                  <option key={s} value={s}>
-                    {SHIFT_LABELS[s as ShiftType]}
-                  </option>
-                ))}
-              </select>
+              <button type="button" onClick={() => setShowSheet(true)} disabled={isSaving}
+                aria-label={`${schedule.employee?.name ?? ''} 근무 타입 수정`}
+                style={{ border: 'none', background: 'transparent', padding: '3px 0', fontSize: 12, color: SHIFT_TEXT_COLOR[shiftType], cursor: 'pointer' }}>
+                {SHIFT_LABELS[shiftType]}
+              </button>
             </td>
 
             {/* 근무 시간 */}

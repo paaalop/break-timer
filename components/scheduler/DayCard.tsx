@@ -369,9 +369,11 @@ export default function DayCard({ date, schedules, employees }: DayCardProps) {
             width: '100%',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6,
-            fontWeight: 600,
+              justifyContent: 'center',
+              gap: 6,
+              fontSize: 'var(--text-caption-size)',
+              lineHeight: 'var(--text-caption-line)',
+              fontWeight: 600,
             background: availableEmployees.length === 0 ? 'var(--color-surface-subtle)' : 'var(--color-muted-bg)',
             color: availableEmployees.length === 0 ? 'var(--color-text-muted)' : 'var(--color-primary)',
             border: 'none',
@@ -379,10 +381,10 @@ export default function DayCard({ date, schedules, employees }: DayCardProps) {
             cursor: availableEmployees.length === 0 ? 'not-allowed' : 'pointer',
             letterSpacing: '-0.02em',
           }}
-          className={`w-full flex items-center justify-center gap-1.5 rounded-md transition-colors h-[32px] text-[12px] ${availableEmployees.length === 0 ? '' : 'hover:bg-[var(--color-muted-bg-hover)]'
+            className={`w-full flex items-center justify-center gap-1.5 rounded-md transition-colors h-[32px] ${availableEmployees.length === 0 ? '' : 'hover:bg-[var(--color-muted-bg-hover)]'
             }`}
         >
-          <span className="text-[12px]" style={{ lineHeight: 1 }}>+</span>
+            <span style={{ fontSize: 'inherit', lineHeight: 1 }}>+</span>
           근무자 추가
         </button>
       </div>
@@ -584,7 +586,9 @@ function AddEmployeeBottomSheet({ date, availableEmployees, onClose, onAdd }: Ad
       onClose={onClose}
       maxWidth={480}
       maxHeight="88vh"
-      padding="12px 20px 24px"
+      padding="12px 0 24px"
+      gap={0}
+      style={{ overflow: 'hidden' }}
     >
       {/* 헤더 */}
       <div
@@ -594,6 +598,8 @@ function AddEmployeeBottomSheet({ date, availableEmployees, onClose, onAdd }: Ad
           justifyContent: 'space-between',
           marginBottom: 12,
           marginTop: 4,
+          paddingInline: 20,
+          flexShrink: 0,
         }}
       >
         <div>
@@ -629,10 +635,9 @@ function AddEmployeeBottomSheet({ date, availableEmployees, onClose, onAdd }: Ad
         style={{
           overflowY: 'auto',
           flex: 1,
+          minHeight: 0,
           display: 'flex',
           flexDirection: 'column',
-          margin: '0 -4px',
-          padding: '0 4px',
         }}
       >
         {availableEmployees.length === 0 ? (
@@ -640,13 +645,12 @@ function AddEmployeeBottomSheet({ date, availableEmployees, onClose, onAdd }: Ad
             배정 가능한 직원이 없습니다.
           </div>
         ) : (
-          availableEmployees.map((emp, idx) => {
+          availableEmployees.map((emp) => {
             const shiftType = emp.default_shift_types[0] as ShiftType | undefined;
             const shiftDefaults = shiftType ? SHIFT_DEFAULTS[shiftType] : undefined;
             const roles = emp.available_roles ?? [];
             const sortedRoles = (['manager', 'cashier', 'pass'] as const).filter((r) => roles.includes(r));
             const isSelected = selectedIds.includes(emp.id);
-            const isLast = idx === availableEmployees.length - 1;
 
             return (
               <div
@@ -656,8 +660,9 @@ function AddEmployeeBottomSheet({ date, availableEmployees, onClose, onAdd }: Ad
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  padding: '12px 10px',
-                  borderRadius: 8,
+                  padding: '12px 20px',
+                  borderRadius: 0,
+                  border: 'none',
                   cursor: 'pointer',
                   background: isSelected ? 'var(--color-surface-subtle)' : 'transparent',
                   transition: 'background 0.12s ease',
@@ -793,20 +798,6 @@ function AddEmployeeBottomSheet({ date, availableEmployees, onClose, onAdd }: Ad
                   )}
                 </div>
 
-                {/* 인셋 구분선 (마지막 항목 제외, 선택 안 됐을 때 노출) */}
-                {!isLast && !isSelected && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      bottom: 0,
-                      left: 58,
-                      right: 10,
-                      height: 1,
-                      background: 'var(--color-border)',
-                      pointerEvents: 'none',
-                    }}
-                  />
-                )}
               </div>
             );
           })
@@ -814,7 +805,7 @@ function AddEmployeeBottomSheet({ date, availableEmployees, onClose, onAdd }: Ad
       </div>
 
       {/* 하단 일괄 추가 액션 버튼 */}
-      <div style={{ marginTop: 14 }}>
+      <div style={{ marginTop: 14, paddingInline: 20, flexShrink: 0 }}>
         <button
           type="button"
           onClick={handleSubmit}

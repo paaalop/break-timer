@@ -4,7 +4,7 @@ import { autoAssignBreaks, validateBreakSlot } from '@/lib/autoBreakAlgo';
 import type { WorkSchedule, BreakWarning, UpsertScheduleInput, Employee, DailyBreakSetting } from '@/types';
 import { getMockAllEmployees } from './useEmployeeStore';
 import { getWeekDates, getWeekStartFromDate, parseDate } from '@/lib/weekUtils';
-import { SHIFT_DEFAULTS } from '@/lib/constants';
+import { SHIFT_DEFAULTS, isFixedPartShift } from '@/lib/constants';
 
 interface ScheduleStore {
   selectedWeekStart: string;
@@ -16,7 +16,7 @@ interface ScheduleStore {
   setWeekStart: (date: string) => void;
   setMinTotalStaff: (num: number) => void;
   fetchSchedules: (weekStart: string, silent?: boolean) => Promise<void>;
-  fetchDaySchedules: (date: string) => Promise<WorkSchedule[]>;
+  fetchDaySchedules: (date: string, throwOnError?: boolean) => Promise<WorkSchedule[]>;
   fetchDayBreakSetting: (date: string) => Promise<DailyBreakSetting | null>;
   saveDayBreakSetting: (setting: { work_date: string; min_total_staff: number; break_start_ref: string }) => Promise<void>;
   upsertSchedule: (data: UpsertScheduleInput) => Promise<void>;
@@ -24,7 +24,7 @@ interface ScheduleStore {
   deleteSchedules: (ids: string[]) => Promise<void>;
   autoFillWeekSchedules: (weekStart: string, employees: Employee[]) => Promise<void>;
   runAutoBreak: (date: string, breakStartRef: string, minStaffOverride?: number) => Promise<{ updatedSchedules: WorkSchedule[]; warnings: BreakWarning[] }>;
-  setManualBreak: (id: string, start: string, end: string) => Promise<void>;
+  setManualBreak: (id: string, start: string | null, end: string | null, allowWarnings?: boolean) => Promise<void>;
   syncDaySchedules: (date: string, mode: 'missing_only' | 'reset_all', employees: Employee[]) => Promise<void>;
   clearBreakWarnings: () => void;
 }
@@ -115,7 +115,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
     }
   },
 
-  fetchDaySchedules: async (date: string): Promise<WorkSchedule[]> => {
+  fetchDaySchedules: async (date: string, throwOnError = false): Promise<WorkSchedule[]> => {
     try {
       let rawSchedules: WorkSchedule[] = [];
       if (!supabase) {
@@ -135,8 +135,8 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
         rawSchedules = ((data as WorkSchedule[]) ?? []).map(normalizeSchedule);
       }
 
-      // 로컬스토리지에 저장된 마지막 배치 결과 캐시가 있다면 휴게시간 보존
-      if (typeof window !== 'undefined') {
+      // DB의 수동 배치·해제 결과를 우선하고, 목업 모드에서만 배치 캐시를 사용한다.
+      if (!supabase && typeof window !== 'undefined') {
         const cachedStr = localStorage.getItem(`auto_break_allocations_${date}`);
         if (cachedStr) {
           try {
@@ -158,6 +158,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
     } catch (err) {
       const message = err instanceof Error ? err.message : '일별 스케줄 조회 실패';
       set({ error: message });
+      if (throwOnError) throw new Error(message);
       return [];
     }
   },
@@ -264,6 +265,10 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
   },
 
   upsertSchedule: async (data: UpsertScheduleInput) => {
+    if (isFixedPartShift(data.shift_type)) {
+      const defaults = SHIFT_DEFAULTS[data.shift_type];
+      data = { ...data, start_time: defaults.start, end_time: defaults.end };
+    }
     set({ error: null });
     try {
       if (!supabase) {
@@ -595,9 +600,12 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
     }
   },
 
-  setManualBreak: async (id: string, start: string, end: string) => {
+  setManualBreak: async (id: string, start: string | null, end: string | null, allowWarnings = false) => {
     set({ error: null });
     try {
+      if ((start || end) && (!start || !end || start >= end)) {
+        throw new Error('휴게 시작·종료 시간을 올바르게 입력하세요.');
+      }
       const client = supabase;
       let targetSchedule: WorkSchedule | undefined;
       let otherSchedules: WorkSchedule[] = [];
@@ -636,19 +644,21 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
         otherSchedules = (othersData as WorkSchedule[]) ?? [];
       }
 
-      // Step 3 검증 로직
-      const { isValid, missingRoles } = validateBreakSlot(
-        targetSchedule,
-        start,
-        end,
-        otherSchedules,
-        get().minTotalStaff
-      );
+      // 기존 주간 근무표 검증은 유지하고 수동 배치 화면은 경고만 표시한다.
+      if (!allowWarnings && start && end) {
+        const { isValid, missingRoles } = validateBreakSlot(
+          targetSchedule,
+          start,
+          end,
+          otherSchedules,
+          get().minTotalStaff
+        );
 
-      if (!isValid) {
-        const message = `${start}~${end}에 ${missingRoles.join(', ')} 포지션 커버 불가 — 저장 차단`;
-        set({ error: message });
-        throw new Error(message);
+        if (!isValid) {
+          const message = `${start}~${end}에 ${missingRoles.join(', ')} 포지션 커버 불가 — 저장 차단`;
+          set({ error: message });
+          throw new Error(message);
+        }
       }
 
       // DB에 직접 UPDATE (upsertSchedule 호출 X -> 주간근무표 상태 간섭 원천 차단)
@@ -676,7 +686,8 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
         const cacheKey = `auto_break_allocations_${targetSchedule.work_date}`;
         try {
           const cached = JSON.parse(localStorage.getItem(cacheKey) || '{}');
-          cached[targetSchedule.employee_id] = { start, end };
+          if (start && end) cached[targetSchedule.employee_id] = { start, end };
+          else delete cached[targetSchedule.employee_id];
           localStorage.setItem(cacheKey, JSON.stringify(cached));
         } catch {
           // ignore

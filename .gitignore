@@ -43,3 +43,7 @@ next-env.d.ts
 
 # scratch
 scratch/
+
+#benchmark
+/benchmark-results/
+benchmark.ps1

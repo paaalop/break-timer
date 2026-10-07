@@ -2,7 +2,8 @@
 
 export * from '../lib/constants';
 
-export type ShiftType = 'open' | 'close' | 'oma' | 'part';
+export type PartShiftType = 'part' | 'part_open' | 'part_close';
+export type ShiftType = 'open' | 'close' | 'oma' | PartShiftType;
 export type Role = 'cashier' | 'pass' | 'manager';
 export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 export type OptimizationPolicy = 'early_finish' | 'balanced' | 'stable_staff';

@@ -4,7 +4,11 @@
  */
 
 import type { WorkSchedule, AlgoResult, BreakWarning } from '@/types';
-import { ALL_ROLES, BREAK_BLOCK_MINUTES, BREAK_BLOCKS } from '@/types';
+import { ALL_ROLES, BREAK_BLOCK_MINUTES, BREAK_BLOCKS, isPartShift } from '@/lib/constants';
+
+function shiftGroup(shift: WorkSchedule['shift_type']): string {
+  return isPartShift(shift) ? 'part' : shift;
+}
 
 // ─── 시간 유틸리티 ───────────────────────────────────────────────────────────
 
@@ -19,6 +23,17 @@ export function toTimeStr(minutes: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+/** 기존 근무 유형·미성년자 규칙에 따른 휴게 길이(30분 단위). */
+export function getBreakDurationMinutes(schedule: WorkSchedule): number {
+  const workMinutes = toMinutes(schedule.end_time) - toMinutes(schedule.start_time);
+  if (workMinutes < 240) return 0;
+  if (schedule.employee?.is_minor) {
+    return Math.ceil(Math.max(30, workMinutes - 420) / BREAK_BLOCK_MINUTES) * BREAK_BLOCK_MINUTES;
+  }
+  if (isPartShift(schedule.shift_type)) return workMinutes >= 480 ? 90 : 30;
+  return ((BREAK_BLOCKS as Record<string, number>)[schedule.shift_type] ?? 3) * BREAK_BLOCK_MINUTES;
 }
 
 /** 두 구간이 겹치는지 확인 (열린 구간: [aStart, aEnd) ∩ [bStart, bEnd)) */
@@ -95,7 +110,8 @@ export function autoAssignBreaks(
   // 근무조(shift_type)별 총 인원 수
   const shiftTotalCounts = new Map<string, number>();
   for (const s of schedules) {
-    shiftTotalCounts.set(s.shift_type, (shiftTotalCounts.get(s.shift_type) ?? 0) + 1);
+    const group = shiftGroup(s.shift_type);
+    shiftTotalCounts.set(group, (shiftTotalCounts.get(group) ?? 0) + 1);
   }
 
   // 75% 룰: 해당 근무조 인원 중 동시 휴게 가능한 최대 인원
@@ -109,8 +125,8 @@ export function autoAssignBreaks(
   // 우선순위: 오마 -> 오픈 -> 마감 -> 파트, 동일 shift_type 내에서는 매니저 직무 보유자 우선 배정
   const priorityOrder: Record<string, number> = { oma: 0, open: 1, close: 2, part: 3 };
   const queue = [...schedules].sort((a, b) => {
-    const pA = priorityOrder[a.shift_type] ?? 99;
-    const pB = priorityOrder[b.shift_type] ?? 99;
+    const pA = priorityOrder[shiftGroup(a.shift_type)] ?? 99;
+    const pB = priorityOrder[shiftGroup(b.shift_type)] ?? 99;
     if (pA !== pB) return pA - pB;
     const isManagerA = a.employee?.available_roles?.includes('manager') ? 0 : 1;
     const isManagerB = b.employee?.available_roles?.includes('manager') ? 0 : 1;
@@ -122,29 +138,8 @@ export function autoAssignBreaks(
   for (const worker of queue) {
     const workerStartMin = toMinutes(worker.start_time);
     const workerEndMin = toMinutes(worker.end_time);
-    const workDurationMin = workerEndMin - workerStartMin;
-
-    // 4시간(240분) 미만 근무자는 근로기준법상 휴게시간 제외
-    if (workDurationMin < 240) {
-      continue;
-    }
-
-    const isMinor = Boolean(worker.employee?.is_minor);
-    let blocks = 3;
-
-    if (isMinor) {
-      // 미성년자: 총 근무시간에서 7시간(420분)을 뺀 시간 (최소 30분 보장)
-      const calcMinorBreakMin = Math.max(30, workDurationMin - 420);
-      blocks = Math.ceil(calcMinorBreakMin / BREAK_BLOCK_MINUTES);
-    } else if (worker.shift_type === 'part') {
-      // 파트타이머: 8시간(480분) 이상이면 1.5시간(3블록), 4시간 이상 8시간 미만이면 30분(1블록)
-      blocks = workDurationMin >= 480 ? 3 : 1;
-    } else {
-      // 일반 근무
-      blocks = (BREAK_BLOCKS as Record<string, number>)[worker.shift_type] ?? 3;
-    }
-
-    const durationMin = blocks * BREAK_BLOCK_MINUTES;
+    const durationMin = getBreakDurationMinutes(worker);
+    if (durationMin === 0) continue;
     // 탐색 시작: 기준 시간(breakStartRef)과 실제 출근 시간(workerStartMin) 중 늦은 시간부터
     let slotStartMin = Math.max(toMinutes(breakStartRef), workerStartMin);
 
@@ -180,7 +175,8 @@ export function autoAssignBreaks(
           const sEnd = toMinutes(s.end_time);
           if (t >= sStart && t < sEnd) {
             if (onBreakIds.has(s.employee_id)) {
-              breakCountByShift.set(s.shift_type, (breakCountByShift.get(s.shift_type) ?? 0) + 1);
+              const group = shiftGroup(s.shift_type);
+              breakCountByShift.set(group, (breakCountByShift.get(group) ?? 0) + 1);
             } else {
               countAtT++;
               for (const r of s.employee?.available_roles ?? []) rolesAtT.add(r);

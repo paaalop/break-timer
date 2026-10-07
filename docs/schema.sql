@@ -32,3 +32,9 @@ CREATE TABLE IF NOT EXISTS daily_break_settings (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- 초기 생성 시에도 공개 API 접근을 차단한다.
+-- 관리자 등록과 접근 정책은 supabase/migrations/20261007000001_secure_admin_access.sql 참고.
+ALTER TABLE public.employees ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.work_schedules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.daily_break_settings ENABLE ROW LEVEL SECURITY;

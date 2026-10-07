@@ -7,5 +7,5 @@ CREATE TABLE IF NOT EXISTS daily_break_settings (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- RLS 비활성화 (익명/클라이언트 직접 접근 허용)
-ALTER TABLE daily_break_settings DISABLE ROW LEVEL SECURITY;
+-- 기본적으로 접근을 차단한다. 관리자 접근 정책은 후속 마이그레이션에서 설정한다.
+ALTER TABLE daily_break_settings ENABLE ROW LEVEL SECURITY;

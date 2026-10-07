@@ -8,13 +8,15 @@ import { useScheduleStore } from '@/store/useScheduleStore';
 interface ManualBreakModalProps {
   schedule: WorkSchedule;
   onClose: () => void;
+  onSaved?: (schedule: WorkSchedule) => void;
+  allowWarnings?: boolean;
 }
 
-export default function ManualBreakModal({ schedule, onClose }: ManualBreakModalProps) {
+export default function ManualBreakModal({ schedule, onClose, onSaved, allowWarnings = false }: ManualBreakModalProps) {
   const titleId = useId();
   const { setManualBreak, error } = useScheduleStore();
-  const [start, setStart] = useState((schedule.break_start_time ?? '14:00').slice(0, 5));
-  const [end, setEnd] = useState((schedule.break_end_time ?? '15:00').slice(0, 5));
+  const [start, setStart] = useState((schedule.break_start_time ?? (allowWarnings ? '' : '14:00')).slice(0, 5));
+  const [end, setEnd] = useState((schedule.break_end_time ?? (allowWarnings ? '' : '15:00')).slice(0, 5));
   const [isSaving, setIsSaving] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -31,7 +33,8 @@ export default function ManualBreakModal({ schedule, onClose }: ManualBreakModal
 
     setIsSaving(true);
     try {
-      await setManualBreak(schedule.id, start, end);
+      await setManualBreak(schedule.id, start, end, allowWarnings);
+      onSaved?.({ ...schedule, break_start_time: start, break_end_time: end });
       onClose();
     } catch (saveError) {
       setLocalError(saveError instanceof Error ? saveError.message : '저장 실패');
@@ -41,6 +44,20 @@ export default function ManualBreakModal({ schedule, onClose }: ManualBreakModal
   };
 
   const displayError = localError ?? error;
+
+  const handleClear = async () => {
+    setLocalError(null);
+    setIsSaving(true);
+    try {
+      await setManualBreak(schedule.id, null, null, true);
+      onSaved?.({ ...schedule, break_start_time: null, break_end_time: null });
+      onClose();
+    } catch (saveError) {
+      setLocalError(saveError instanceof Error ? saveError.message : '저장 실패');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <Dialog open onClose={onClose} titleId={titleId} maxWidth={360}>
@@ -63,7 +80,11 @@ export default function ManualBreakModal({ schedule, onClose }: ManualBreakModal
           </label>
         </div>
 
-        {displayError ? <div className="ui-alert ui-alert--danger">{displayError}</div> : null}
+        {allowWarnings && <p className="ui-caption">배치 오류가 있어도 저장할 수 있습니다. 저장 후 휴게배치 화면에서 확인하세요.</p>}
+        {displayError ? <div role="alert" className="ui-alert ui-alert--danger">{displayError}</div> : null}
+        {allowWarnings && (schedule.break_start_time || schedule.break_end_time) && (
+          <button type="button" className="ui-button ui-button--quiet" onClick={() => void handleClear()} disabled={isSaving}>휴게 배치 해제</button>
+        )}
 
         <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
           <button type="button" className="ui-button ui-button--primary" style={{ flex: 1 }} onClick={() => void handleSave()} disabled={isSaving}>
