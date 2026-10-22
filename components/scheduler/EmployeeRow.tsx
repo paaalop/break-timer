@@ -5,6 +5,8 @@ import type { WorkSchedule, ShiftType } from '@/types';
 import { ROLE_LABELS, SHIFT_LABELS, SHIFT_DEFAULTS, CUSTOM_LABEL_MAX_LENGTH, getShiftTimes, isFixedPartShift, getShiftDisplay, normalizeCustomLabel } from '@/lib/constants';
 import { useScheduleStore } from '@/store/useScheduleStore';
 import BottomSheet from '@/components/ui/BottomSheet';
+import Dialog from '@/components/ui/Dialog';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import ShiftTypePicker from '@/components/ui/ShiftTypePicker';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import TimeWheelPickerModal from '@/components/ui/TimeWheelPickerModal';
@@ -181,178 +183,219 @@ function ShiftBottomSheet({ schedule, onClose }: ShiftBottomSheetProps) {
     }
   };
 
+  const isDesktop = useMediaQuery('(min-width: 768px)');
   const isPartTime = shiftType === 'part' || isCustom;
 
-  return (
+  const fields = (
     <>
-      <BottomSheet
-        onClose={onClose}
-        maxWidth={480}
-        maxHeight="92vh"
-        padding="10px 20px 36px"
-        gap={20}
-      >
-        {/* 헤더: 제목 + (우상단 근무자 삭제) */}
+      {/* 이름 입력 형태 (라벨 + 밑줄 형태) */}
+      <div>
+        <label style={labelStyle}>
+          이름
+        </label>
         <div
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingBottom: 12,
-            minHeight: 28,
+            padding: '8px 0',
+            fontSize: 20,
+            fontWeight: 700,
+            color: 'var(--color-neutral-dark)',
+            borderBottom: '1.5px solid var(--color-border)',
+            letterSpacing: '-0.02em',
+            lineHeight: 1.2,
           }}
         >
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-neutral-dark)', margin: 0, lineHeight: 1 }}>
-            근무 수정
-          </h2>
-          <button
-            type="button"
-            onClick={() => setShowDeleteConfirmDialog(true)}
-            disabled={isSaving || isDeleting}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '4px 0',
-              color: 'var(--color-danger)',
-              fontSize: 13,
-              fontWeight: 600,
-              opacity: isSaving || isDeleting ? 0.4 : 1,
-              letterSpacing: '-0.02em',
-            }}
-          >
-            근무자 삭제
-          </button>
+          {schedule.employee?.name ?? ''}
         </div>
+      </div>
 
-        {/* 이름 입력 형태 (라벨 + 밑줄 형태) */}
+      {/* 근무 타입 (단일 선택: 세그먼트 컨트롤) */}
+      <div>
+        <label style={labelStyle}>
+          근무 타입
+        </label>
+        <ShiftTypePicker value={shiftType} onChange={handleShiftSelect} disabled={isSaving} customActive={isCustom} onSelectCustom={handleSelectCustom} />
+        {isCustom && (
+          <input
+            type="text"
+            value={customLabel}
+            maxLength={CUSTOM_LABEL_MAX_LENGTH}
+            onChange={(e) => setCustomLabel(e.target.value)}
+            placeholder="근무 타입 입력 (예: 월차)"
+            aria-label="근무 타입 직접입력"
+            disabled={isSaving}
+            style={{ ...sheetUnderlineButtonStyle, marginTop: 12, fontSize: 16, fontWeight: 700, color: 'var(--color-neutral-dark)', width: '100%', boxSizing: 'border-box', outline: 'none' }}
+          />
+        )}
+      </div>
+
+      {/* 파트타임 시간 선택 */}
+      {isFixedPartShift(shiftType) && (
         <div>
-          <label style={labelStyle}>
-            이름
-          </label>
-          <div
-            style={{
-              padding: '8px 0',
-              fontSize: 20,
-              fontWeight: 700,
-              color: 'var(--color-neutral-dark)',
-              borderBottom: '1.5px solid var(--color-border)',
-              letterSpacing: '-0.02em',
-              lineHeight: 1.2,
-            }}
-          >
-            {schedule.employee?.name ?? ''}
-          </div>
-        </div>
-
-        {/* 근무 타입 (단일 선택: 세그먼트 컨트롤) */}
-        <div>
-          <label style={labelStyle}>
-            근무 타입
-          </label>
-          <ShiftTypePicker value={shiftType} onChange={handleShiftSelect} disabled={isSaving} customActive={isCustom} onSelectCustom={handleSelectCustom} />
-          {isCustom && (
-            <input
-              type="text"
-              value={customLabel}
-              maxLength={CUSTOM_LABEL_MAX_LENGTH}
-              onChange={(e) => setCustomLabel(e.target.value)}
-              placeholder="근무 타입 입력 (예: 월차)"
-              aria-label="근무 타입 직접입력"
-              disabled={isSaving}
-              style={{ ...sheetUnderlineButtonStyle, marginTop: 12, fontSize: 16, fontWeight: 700, color: 'var(--color-neutral-dark)', width: '100%', boxSizing: 'border-box', outline: 'none' }}
-            />
-          )}
-        </div>
-
-        {/* 파트타임 시간 선택 */}
-        {isFixedPartShift(shiftType) && <div>
           <label style={labelStyle}>근무 시간</label>
           <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-neutral-dark)', fontVariantNumeric: 'tabular-nums' }}>
             {startTime} ~ {endTime}
           </div>
-        </div>}
-        {isPartTime && (
-          <div>
-            <label style={labelStyle}>근무 시간</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%' }}>
-              {/* 시작 시간 버튼 */}
-              <div style={{ position: 'relative', flex: 1 }}>
+        </div>
+      )}
+      {isPartTime && (
+        <div>
+          <label style={labelStyle}>근무 시간</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%' }}>
+            {/* 시작 시간 버튼 */}
+            <div style={{ position: 'relative', flex: 1 }}>
+              <button
+                type="button"
+                onClick={() => setPickerTarget('start')}
+                style={sheetUnderlineButtonStyle}
+              >
+                <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-neutral-dark)' }}>
+                  {startTime}
+                </span>
+                <div
+                  style={{
+                    color: 'var(--color-text-muted)',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
+                    <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+              </button>
+            </div>
+
+            <span style={{ color: 'var(--color-text-muted)', fontSize: 14, flexShrink: 0 }}>~</span>
+
+            {/* 종료 시간 버튼 */}
+            <div style={{ position: 'relative', flex: 1 }}>
+              <button
+                type="button"
+                onClick={() => setPickerTarget('end')}
+                style={sheetUnderlineButtonStyle}
+              >
+                <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-neutral-dark)' }}>
+                  {endTime}
+                </span>
+                <div
+                  style={{
+                    color: 'var(--color-text-muted)',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
+                    <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+
+  return (
+    <>
+      {isDesktop ? (
+        <Dialog onClose={onClose} maxWidth={480}>
+          <div className="emp-modal">
+            <div className="emp-modal__header">
+              <h2 className="ui-overlay-title">근무 수정</h2>
+              <button type="button" className="emp-modal__close" onClick={onClose} aria-label="닫기">✕</button>
+            </div>
+            <div className="emp-modal__body">{fields}</div>
+            <div className="emp-modal__footer">
+              <button
+                type="button"
+                className="ui-button ui-button--secondary emp-modal__delete"
+                onClick={() => setShowDeleteConfirmDialog(true)}
+                disabled={isSaving || isDeleting}
+              >
+                근무자 삭제
+              </button>
+              <div className="emp-modal__footer-actions">
                 <button
                   type="button"
-                  onClick={() => setPickerTarget('start')}
-                  style={sheetUnderlineButtonStyle}
+                  className="ui-button ui-button--primary"
+                  onClick={handleSave}
+                  disabled={isSaving || (isCustom && !customLabel.trim())}
                 >
-                  <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-neutral-dark)' }}>
-                    {startTime}
-                  </span>
-                  <div
-                    style={{
-                      color: 'var(--color-text-muted)',
-                      display: 'flex',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
-                      <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </div>
-                </button>
-              </div>
-
-              <span style={{ color: 'var(--color-text-muted)', fontSize: 14, flexShrink: 0 }}>~</span>
-
-              {/* 종료 시간 버튼 */}
-              <div style={{ position: 'relative', flex: 1 }}>
-                <button
-                  type="button"
-                  onClick={() => setPickerTarget('end')}
-                  style={sheetUnderlineButtonStyle}
-                >
-                  <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-neutral-dark)' }}>
-                    {endTime}
-                  </span>
-                  <div
-                    style={{
-                      color: 'var(--color-text-muted)',
-                      display: 'flex',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
-                      <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </div>
+                  {isSaving ? '저장 중...' : '저장'}
                 </button>
               </div>
             </div>
           </div>
-        )}
-
-        {/* 저장 버튼 */}
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={isSaving || (isCustom && !customLabel.trim())}
-          style={{
-            width: '100%',
-            padding: '14px 0',
-            fontSize: 14,
-            fontWeight: 700,
-            border: 'none',
-            borderRadius: 8,
-            background: 'var(--color-primary)',
-            color: 'var(--color-on-primary)',
-            cursor: isSaving || (isCustom && !customLabel.trim()) ? 'not-allowed' : 'pointer',
-            opacity: isSaving || (isCustom && !customLabel.trim()) ? 0.6 : 1,
-            marginTop: 6,
-            transition: 'opacity 0.15s',
-            letterSpacing: '-0.02em',
-          }}
+        </Dialog>
+      ) : (
+        <BottomSheet
+          onClose={onClose}
+          maxWidth={480}
+          maxHeight="92vh"
+          padding="10px 20px 36px"
+          gap={20}
         >
-          {isSaving ? '저장 중...' : '변경사항 저장'}
-        </button>
-      </BottomSheet>
+          {/* 헤더: 제목 + (우상단 근무자 삭제) */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingBottom: 12,
+              minHeight: 28,
+            }}
+          >
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-neutral-dark)', margin: 0, lineHeight: 1 }}>
+              근무 수정
+            </h2>
+            <button
+              type="button"
+              onClick={() => setShowDeleteConfirmDialog(true)}
+              disabled={isSaving || isDeleting}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '4px 0',
+                color: 'var(--color-danger)',
+                fontSize: 13,
+                fontWeight: 600,
+                opacity: isSaving || isDeleting ? 0.4 : 1,
+                letterSpacing: '-0.02em',
+              }}
+            >
+              근무자 삭제
+            </button>
+          </div>
+
+          {fields}
+
+          {/* 저장 버튼 */}
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isSaving || (isCustom && !customLabel.trim())}
+            style={{
+              width: '100%',
+              padding: '14px 0',
+              fontSize: 14,
+              fontWeight: 700,
+              border: 'none',
+              borderRadius: 8,
+              background: 'var(--color-primary)',
+              color: 'var(--color-on-primary)',
+              cursor: isSaving || (isCustom && !customLabel.trim()) ? 'not-allowed' : 'pointer',
+              opacity: isSaving || (isCustom && !customLabel.trim()) ? 0.6 : 1,
+              marginTop: 6,
+              transition: 'opacity 0.15s',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            {isSaving ? '저장 중...' : '변경사항 저장'}
+          </button>
+        </BottomSheet>
+      )}
 
       {/* 30분 단위 다이얼 휠 타임 피커 */}
       <TimeWheelPickerModal
@@ -422,14 +465,11 @@ function EmployeeRowContent({
   isLast = false,
   variant,
 }: EmployeeRowProps) {
-  const { upsertSchedule } = useScheduleStore();
   const shiftType = schedule.shift_type;
   const shiftDisplay = getShiftDisplay(shiftType, schedule.custom_label);
-  const [startTime, setStartTime] = useState(schedule.start_time);
-  const [endTime, setEndTime] = useState(schedule.end_time);
-  const [isSaving, setIsSaving] = useState(false);
+  const [startTime] = useState(schedule.start_time);
+  const [endTime] = useState(schedule.end_time);
   const [showSheet, setShowSheet] = useState(false);
-  const [desktopPickerTarget, setDesktopPickerTarget] = useState<'start' | 'end' | null>(null);
 
   // ── 롱프레스 제스처 핸들링 ──────────────────────────────────────────────────
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -490,46 +530,6 @@ function EmployeeRowContent({
     }
   };
 
-  // 데스크톱 전용 핸들러 ─────────────────────────────────────────────────────
-  const handleStartTimeChange = async (newStart: string) => {
-    setStartTime(newStart);
-    setIsSaving(true);
-    try {
-      await upsertSchedule({
-        id: schedule.id,
-        employee_id: schedule.employee_id,
-        work_date: schedule.work_date,
-        shift_type: shiftType,
-        start_time: newStart,
-        end_time: endTime,
-        break_start_time: schedule.break_start_time,
-        break_end_time: schedule.break_end_time,
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleEndTimeChange = async (newEnd: string) => {
-    setEndTime(newEnd);
-    setIsSaving(true);
-    try {
-      await upsertSchedule({
-        id: schedule.id,
-        employee_id: schedule.employee_id,
-        work_date: schedule.work_date,
-        shift_type: shiftType,
-        start_time: startTime,
-        end_time: newEnd,
-        break_start_time: schedule.break_start_time,
-        break_end_time: schedule.break_end_time,
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const isPartTime = shiftType === 'part' || !!schedule.custom_label?.trim();
   const roles = schedule.employee?.available_roles ?? [];
   const sortedRoles = (['manager', 'cashier', 'pass'] as const).filter((r) => roles.includes(r));
   const hasBreakWarning = isBreakOutsideWorkHours({
@@ -717,14 +717,20 @@ function EmployeeRowContent({
       {(!variant || variant === 'desktop') && (
         <>
           <tr
-            className={variant === 'desktop' ? undefined : 'hidden md:table-row'}
+            className={variant === 'desktop' ? 'cursor-pointer hover:bg-[var(--color-surface-subtle)]' : 'hidden md:table-row cursor-pointer hover:bg-[var(--color-surface-subtle)]'}
+            onClick={() => setShowSheet(true)}
             style={{
               background: isSelected ? 'var(--color-surface-subtle)' : 'transparent',
               transition: 'background 0.15s ease',
+              cursor: 'pointer',
             }}
+            title="클릭하여 근무 수정"
           >
             {/* 선택 체크박스 */}
-            <td style={{ ...tdStyle, width: 28, padding: '4px 2px' }}>
+            <td
+              onClick={(e) => e.stopPropagation()}
+              style={{ ...tdStyle, width: 28, padding: '4px 2px' }}
+            >
               <input
                 type="checkbox"
                 checked={isSelected}
@@ -734,77 +740,32 @@ function EmployeeRowContent({
               />
             </td>
 
-            {/* 직원 이름 (작은 아바타 포함) */}
+            {/* 직원 이름 */}
             <td
-              onClick={() => setShowSheet(true)}
               style={{
                 ...tdStyle,
                 fontWeight: 600,
                 color: 'var(--color-neutral-dark)',
                 width: '22%',
-                cursor: 'pointer',
               }}
-              title="클릭하여 근무 수정"
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                <div
-                  style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: '50%',
-                    background: 'var(--color-muted-bg)',
-                    color: 'var(--color-primary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 10,
-                    fontWeight: 700,
-                    flexShrink: 0,
-                    letterSpacing: '-0.02em',
-                  }}
-                >
-                  {(schedule.employee?.name ?? '').slice(-2)}
-                </div>
-                <span>{schedule.employee?.name ?? '알 수 없음'}</span>
-              </div>
+              <span>{schedule.employee?.name ?? '알 수 없음'}</span>
             </td>
 
-            {/* 근무 타입: 공통 수정 시트에서 선택 */}
+            {/* 근무 타입 */}
             <td style={{ ...tdStyle, width: '24%' }}>
-              <button type="button" onClick={() => setShowSheet(true)} disabled={isSaving}
-                aria-label={`${schedule.employee?.name ?? ''} 근무 타입 수정`}
-                style={{ border: 'none', background: 'transparent', padding: '3px 0', fontSize: 12, color: shiftDisplay.color, cursor: 'pointer' }}>
+              <span
+                style={{ display: 'inline-block', fontSize: 12, fontWeight: 600, color: shiftDisplay.color }}
+              >
                 {shiftDisplay.label}
-              </button>
+              </span>
             </td>
 
             {/* 근무 시간 */}
             <td style={{ ...tdStyle, width: '54%', borderRight: 'none' }}>
-              {isPartTime ? (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-                  <button
-                    type="button"
-                    onClick={() => setDesktopPickerTarget('start')}
-                    disabled={isSaving}
-                    style={timeButtonStyle}
-                  >
-                    {formatTimeHHMM(startTime)}
-                  </button>
-                  <span style={{ fontSize: 10, color: 'var(--color-disabled)', margin: '0 1px' }}>~</span>
-                  <button
-                    type="button"
-                    onClick={() => setDesktopPickerTarget('end')}
-                    disabled={isSaving}
-                    style={timeButtonStyle}
-                  >
-                    {formatTimeHHMM(endTime)}
-                  </button>
-                </div>
-              ) : (
-                <span style={{ fontSize: 11, color: 'var(--color-text-subtle)', whiteSpace: 'nowrap' }}>
-                  {formatTimeHHMM(startTime)}~{formatTimeHHMM(endTime)}
-                </span>
-              )}
+              <span style={{ fontSize: 11, color: 'var(--color-text-subtle)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                {formatTimeHHMM(startTime)}~{formatTimeHHMM(endTime)}
+              </span>
             </td>
           </tr>
           {hasBreakWarning && (
@@ -818,78 +779,28 @@ function EmployeeRowContent({
               </td>
             </tr>
           )}
-          {!isLast && (
-            <tr className={variant === 'desktop' ? undefined : 'hidden md:table-row'}>
-              <td
-                colSpan={4}
-                style={{
-                  padding: 0,
-                  height: 1,
-                  lineHeight: 0,
-                  fontSize: 0,
-                  border: 'none',
-                  background: 'transparent',
-                }}
-              >
-                <div style={{ margin: '0 10px', height: 1, background: 'var(--color-border)' }} />
-              </td>
-            </tr>
-          )}
         </>
       )}
 
-      {/* 근무 수정 바텀시트 (모바일) */}
+      {/* 근무 수정 바텀시트 / 모달 */}
       {showSheet && (
         <ShiftBottomSheet
           schedule={{ ...schedule, shift_type: shiftType, start_time: startTime, end_time: endTime }}
           onClose={() => setShowSheet(false)}
         />
       )}
-
-      {/* 데스크톱 타임 피커 모달 */}
-      <TimeWheelPickerModal
-        isOpen={desktopPickerTarget !== null}
-        value={desktopPickerTarget === 'start' ? formatTimeHHMM(startTime) : formatTimeHHMM(endTime)}
-        title={desktopPickerTarget === 'start' ? '근무 시작 시간을 알려주세요' : '근무 종료 시간을 알려주세요'}
-        minTime="10:30"
-        maxTime="21:30"
-        zIndex={400}
-        onClose={() => setDesktopPickerTarget(null)}
-        onConfirm={(val) => {
-          if (desktopPickerTarget === 'start') {
-            handleStartTimeChange(val);
-          } else if (desktopPickerTarget === 'end') {
-            handleEndTimeChange(val);
-          }
-          setDesktopPickerTarget(null);
-        }}
-      />
     </>
   );
 }
 
 const tdStyle: React.CSSProperties = {
-  padding: '6px 2px',
+  padding: '6px 4px',
   fontSize: 12,
+  lineHeight: 1.35,
   textAlign: 'center',
-  borderBottom: 'none',
+  borderBottom: '1px solid var(--color-border)',
   borderRight: '1px solid var(--color-border)',
   verticalAlign: 'middle',
-};
-
-const timeButtonStyle: React.CSSProperties = {
-  border: '1px solid var(--color-border)',
-  borderRadius: 4,
-  outline: 'none',
-  background: 'var(--color-surface-subtle)',
-  fontSize: 11,
-  fontFamily: 'inherit',
-  fontWeight: 600,
-  color: 'var(--color-neutral-dark)',
-  cursor: 'pointer',
-  padding: '2px 4px',
-  boxSizing: 'border-box',
-  transition: 'all 0.15s ease',
 };
 
 const labelStyle: React.CSSProperties = {

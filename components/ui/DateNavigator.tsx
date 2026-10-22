@@ -8,6 +8,7 @@ interface DateNavigatorProps {
   labelStyle?: CSSProperties;
   previousLabel?: string;
   nextLabel?: string;
+  className?: string;
 }
 
 export default function DateNavigator({
@@ -18,9 +19,10 @@ export default function DateNavigator({
   labelStyle,
   previousLabel = '이전',
   nextLabel = '다음',
+  className,
 }: DateNavigatorProps) {
   return (
-    <div className="ui-date-navigator">
+    <div className={`ui-date-navigator ${className ?? ''}`.trim()}>
       <button type="button" className="ui-date-navigator__button" onClick={onPrevious} aria-label={previousLabel}>
         ‹
       </button>

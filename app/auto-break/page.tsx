@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Header from '@/components/layout/Header';
@@ -173,7 +173,7 @@ export default function ManualBreakPage() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--color-bg)' }}>
       <Header />
-      <main className="max-w-[1400px] mx-auto px-0 pt-3 pb-20 sm:px-8 md:px-10 sm:pt-4 sm:pb-24">
+      <main className="page-main page-main--narrow max-w-[1400px] mx-auto px-0 pt-3 pb-20 sm:px-8 md:px-10 sm:pt-4 sm:pb-24">
         <header className="ui-page-header break-page-header">
           <div className="break-date-navigation" style={{ position: 'relative' }}>
             <button type="button" className="ui-date-navigator__button" aria-label="이전 날" disabled={resetting} onClick={() => handleShiftDay(-1)}>‹</button>
@@ -210,7 +210,7 @@ export default function ManualBreakPage() {
         {!activeDay ? <p className="ui-caption px-6 sm:px-4">근무 스케줄을 불러오는 중...</p>
           : activeDay.schedules.length === 0 ? !activeDay.error && <p className="ui-caption px-6 sm:px-4">해당 날짜에 등록된 근무 스케줄이 없습니다.</p>
           : <>
-            <section aria-label="시간대별 휴게 배치">
+            <section aria-label="시간대별 휴게 배치" className="break-list-card">
               <div>
                 {timeTable.length === 0 && <p className="ui-caption px-6 sm:px-4">표시할 슬롯이 없습니다.</p>}
                 {timeTable.map((slot) => {

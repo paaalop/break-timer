@@ -193,7 +193,7 @@ const WeekGrid = forwardRef<HTMLDivElement, WeekGridProps>(function WeekGrid(
       {/* 2. 데스크톱 전용 UI (md: 이상): 3열 그리드로 7개 요일 전체 표시 */}
       <div className="hidden md:block">
         {emptyState}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 2xl:grid-cols-4 gap-4">
           {dates.map((date) => {
             const daySchedules = schedules.filter((s) => s.work_date === date);
             return (

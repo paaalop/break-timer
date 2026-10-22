@@ -30,10 +30,38 @@ export default function Header({ isDark = false, hideSignOut = false, rightActio
 
   return (
     <>
-      {/* 우측 상단 액션 바 (로그아웃 / 커스텀 액션 등 - 독립된 행으로 높이 확보) */}
+      {/* PC(md 이상) 상단 헤더 바: 서비스명 · 탭 · 로그아웃 */}
+      <header className="app-header">
+        <div className="app-header__inner">
+          <span className="app-header__brand">코지하우스 사직</span>
+          <nav className="app-header__nav" aria-label="주요 메뉴">
+            {NAV_TABS.map((tab) => (
+              <Link
+                key={tab.href}
+                href={tab.href}
+                className="app-header__tab"
+                aria-current={pathname === tab.href ? 'page' : undefined}
+              >
+                {tab.label}
+              </Link>
+            ))}
+          </nav>
+          <div className="app-header__actions">
+            {rightAction ? (
+              rightAction
+            ) : !hideSignOut ? (
+              <button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={handleSignOut}>
+                로그아웃
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </header>
+
+      {/* 모바일 우측 상단 액션 바 (로그아웃 / 커스텀 액션 등 - 독립된 행으로 높이 확보) */}
       {hasTopBar && (
         <div
-          className="max-w-[1400px] mx-auto px-4 sm:px-8 md:px-10 flex items-center justify-end"
+          className="md:hidden max-w-[1400px] mx-auto px-4 sm:px-8 md:px-10 flex items-center justify-end"
           style={{ height: 36, paddingTop: 8 }}
         >
           {rightAction ? (
@@ -68,8 +96,9 @@ export default function Header({ isDark = false, hideSignOut = false, rightActio
         </div>
       )}
 
-      {/* 하단 중앙 정렬 내비게이션 바 */}
+      {/* 모바일 하단 중앙 정렬 내비게이션 바 */}
       <nav
+        className="md:hidden"
         style={{
           position: 'fixed',
           bottom: 0,
@@ -122,4 +151,3 @@ export default function Header({ isDark = false, hideSignOut = false, rightActio
     </>
   );
 }
-

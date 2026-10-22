@@ -8,6 +8,8 @@ import { useScheduleStore } from '@/store/useScheduleStore';
 import EmployeeRow from './EmployeeRow';
 import BottomSheet from '@/components/ui/BottomSheet';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import Dialog from '@/components/ui/Dialog';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 interface DayCardProps {
   date: string;
@@ -114,7 +116,7 @@ export default function DayCard({ date, schedules, employees }: DayCardProps) {
 
   return (
     <div
-      className="md:border md:rounded-xl"
+      className="md:border md:rounded-none"
       style={{
         borderColor: 'var(--color-border)',
         background: 'var(--color-surface)',
@@ -129,7 +131,8 @@ export default function DayCard({ date, schedules, employees }: DayCardProps) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '2px 16px',
+          padding: '6px 14px',
+          borderBottom: '1px solid var(--color-border)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -291,21 +294,6 @@ export default function DayCard({ date, schedules, employees }: DayCardProps) {
               <th style={{ ...thStyle, width: '24%' }}>근무 타입</th>
               {/* 근무 시간 (마지막 칼럼 우측 선 없음) */}
               <th style={{ ...thStyle, width: '54%', borderRight: 'none' }}>근무 시간</th>
-            </tr>
-            <tr>
-              <td
-                colSpan={4}
-                style={{
-                  padding: 0,
-                  height: 1,
-                  lineHeight: 0,
-                  fontSize: 0,
-                  border: 'none',
-                  background: 'transparent',
-                }}
-              >
-                <div style={{ margin: '0 16px', height: 1, background: 'var(--color-border)' }} />
-              </td>
             </tr>
           </thead>
           <tbody>
@@ -549,6 +537,7 @@ interface AddEmployeeBottomSheetProps {
 }
 
 function AddEmployeeBottomSheet({ date, availableEmployees, onClose, onAdd }: AddEmployeeBottomSheetProps) {
+  const isDesktop = useMediaQuery('(min-width: 768px)');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -580,6 +569,240 @@ function AddEmployeeBottomSheet({ date, availableEmployees, onClose, onAdd }: Ad
 
   const isAllSelected =
     availableEmployees.length > 0 && selectedIds.length === availableEmployees.length;
+
+  const employeeList = (
+    <>
+      {availableEmployees.length === 0 ? (
+        <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 13 }}>
+          배정 가능한 직원이 없습니다.
+        </div>
+      ) : (
+        availableEmployees.map((emp) => {
+          const shiftType = emp.default_shift_types[0] as ShiftType | undefined;
+          const shiftDefaults = shiftType ? SHIFT_DEFAULTS[shiftType] : undefined;
+          const roles = emp.available_roles ?? [];
+          const sortedRoles = (['manager', 'cashier', 'pass'] as const).filter((r) => roles.includes(r));
+          const isSelected = selectedIds.includes(emp.id);
+
+          return (
+            <div
+              key={emp.id}
+              onClick={() => toggleSelect(emp.id)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '7px 16px',
+                borderRadius: 0,
+                border: 'none',
+                borderBottom: '1px solid var(--color-border)',
+                cursor: 'pointer',
+                background: isSelected ? 'var(--color-surface-subtle)' : 'transparent',
+                transition: 'background 0.12s ease',
+                position: 'relative',
+                userSelect: 'none',
+                WebkitUserSelect: 'none',
+              }}
+            >
+              {/* 좌측: 아바타 + (1행: 이름, 직무뱃지, 미성년자 / 2행: 근무타입, 시간) */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
+                {/* 미니 원형 아바타 (28px) */}
+                <div
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: '50%',
+                    background: 'var(--color-muted-bg)',
+                    color: 'var(--color-primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    flexShrink: 0,
+                  }}
+                >
+                  {emp.name.slice(-2)}
+                </div>
+
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  {/* 1행: 이름 + 직무 통합 뱃지 + 미성년자 */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap', overflow: 'hidden' }}>
+                    <span
+                      style={{
+                        fontSize: 13.5,
+                        fontWeight: 700,
+                        color: 'var(--color-neutral-dark)',
+                        letterSpacing: '-0.02em',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {emp.name}
+                    </span>
+
+                    {/* 직무 뱃지 */}
+                    {sortedRoles.length > 0 && (
+                      <span
+                        style={{
+                          padding: '0 5px',
+                          fontSize: 10.5,
+                          fontWeight: 600,
+                          borderRadius: 3,
+                          background: 'var(--color-muted-bg)',
+                          color: 'var(--color-text-subtle)',
+                          lineHeight: 1.4,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {sortedRoles.map((r) => ROLE_LABELS[r] ?? r).join(' · ')}
+                      </span>
+                    )}
+
+                    {/* 미성년자 뱃지 */}
+                    {emp.is_minor && (
+                      <span
+                        style={{
+                          padding: '0 4px',
+                          fontSize: 9.5,
+                          fontWeight: 700,
+                          borderRadius: 3,
+                          background: 'var(--color-warning-surface)',
+                          color: 'var(--color-warning)',
+                          lineHeight: 1.3,
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0,
+                        }}
+                      >
+                        미성년자
+                      </span>
+                    )}
+                  </div>
+
+                  {/* 2행: 기본 근무타입(컬러 텍스트) + 시간 */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 1 }}>
+                    {shiftType ? (
+                      <>
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: SHIFT_TEXT_COLOR[shiftType] ?? 'var(--color-text-subtle)',
+                            letterSpacing: '-0.02em',
+                          }}
+                        >
+                          {SHIFT_LABELS[shiftType] ?? shiftType}
+                        </span>
+                        {shiftDefaults && (
+                          <span className="ui-caption" style={{ color: 'var(--color-text-muted)', fontSize: 11 }}>
+                            {shiftDefaults.start}~{shiftDefaults.end}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="ui-caption" style={{ color: 'var(--color-text-muted)', fontSize: 11 }}>기본 근무 미설정</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* 우측: 체크박스 인디케이터 */}
+              <div
+                style={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: 4,
+                  border: isSelected ? 'none' : '1.5px solid var(--color-border-strong)',
+                  background: isSelected ? 'var(--color-primary)' : 'transparent',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  marginLeft: 10,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {isSelected && (
+                  <svg width="10" height="8" viewBox="0 0 12 9" fill="none">
+                    <path d="M1.5 4.5L4.5 7.5L10.5 1.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </div>
+            </div>
+          );
+        })
+      )}
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <Dialog onClose={onClose} maxWidth={480}>
+        <div className="emp-modal">
+          {/* 헤더 */}
+          <div className="emp-modal__header">
+            <div>
+              <h3 className="ui-overlay-title" style={{ margin: 0 }}>
+                근무자 추가
+              </h3>
+              <span style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2, display: 'block' }}>
+                {formatDayLabel(date)} · 배정 가능 {availableEmployees.length}명
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {availableEmployees.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleToggleSelectAll}
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: 'var(--color-primary)',
+                    cursor: 'pointer',
+                    padding: '4px 6px',
+                  }}
+                >
+                  {isAllSelected ? '선택 해제' : '전체 선택'}
+                </button>
+              )}
+              <button type="button" className="emp-modal__close" onClick={onClose} aria-label="닫기">
+                ✕
+              </button>
+            </div>
+          </div>
+
+          {/* 본문: 직원 목록 */}
+          <div
+            className="emp-modal__body"
+            style={{ padding: 0, maxHeight: '60vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 0 }}
+          >
+            {employeeList}
+          </div>
+
+          {/* 푸터: 액션 버튼 */}
+          <div className="emp-modal__footer" style={{ justifyContent: 'stretch' }}>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={selectedIds.length === 0 || isSubmitting}
+              className="ui-button ui-button--primary"
+              style={{ width: '100%', minHeight: 42 }}
+            >
+              {isSubmitting
+                ? '추가하는 중...'
+                : selectedIds.length > 0
+                ? `${selectedIds.length}명 근무표에 추가`
+                : '추가할 직원을 선택해주세요'}
+            </button>
+          </div>
+        </div>
+      </Dialog>
+    );
+  }
 
   return (
     <BottomSheet
@@ -640,168 +863,7 @@ function AddEmployeeBottomSheet({ date, availableEmployees, onClose, onAdd }: Ad
           flexDirection: 'column',
         }}
       >
-        {availableEmployees.length === 0 ? (
-          <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 13 }}>
-            배정 가능한 직원이 없습니다.
-          </div>
-        ) : (
-          availableEmployees.map((emp) => {
-            const shiftType = emp.default_shift_types[0] as ShiftType | undefined;
-            const shiftDefaults = shiftType ? SHIFT_DEFAULTS[shiftType] : undefined;
-            const roles = emp.available_roles ?? [];
-            const sortedRoles = (['manager', 'cashier', 'pass'] as const).filter((r) => roles.includes(r));
-            const isSelected = selectedIds.includes(emp.id);
-
-            return (
-              <div
-                key={emp.id}
-                onClick={() => toggleSelect(emp.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '12px 20px',
-                  borderRadius: 0,
-                  border: 'none',
-                  cursor: 'pointer',
-                  background: isSelected ? 'var(--color-surface-subtle)' : 'transparent',
-                  transition: 'background 0.12s ease',
-                  position: 'relative',
-                  userSelect: 'none',
-                  WebkitUserSelect: 'none',
-                }}
-              >
-                {/* 좌측: 아바타 + (1행: 이름, 직무뱃지, 미성년자 / 2행: 근무타입, 시간) */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
-                  {/* 미니 원형 아바타 (36px) */}
-                  <div
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: '50%',
-                      background: 'var(--color-muted-bg)',
-                      color: 'var(--color-primary)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 13,
-                      fontWeight: 700,
-                      flexShrink: 0,
-                    }}
-                  >
-                    {emp.name.slice(-2)}
-                  </div>
-
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    {/* 1행: 이름 + 직무 통합 뱃지 + 미성년자 */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap', overflow: 'hidden' }}>
-                      <span
-                        style={{
-                          fontSize: 15,
-                          fontWeight: 700,
-                          color: 'var(--color-neutral-dark)',
-                          letterSpacing: '-0.02em',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {emp.name}
-                      </span>
-
-                      {/* 직무 뱃지 */}
-                      {sortedRoles.length > 0 && (
-                        <span
-                          style={{
-                            padding: '1px 6px',
-                            fontSize: 11,
-                            fontWeight: 600,
-                            borderRadius: 4,
-                            background: 'var(--color-muted-bg)',
-                            color: 'var(--color-text-subtle)',
-                            lineHeight: 1.4,
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            flexShrink: 0,
-                          }}
-                        >
-                          {sortedRoles.map((r) => ROLE_LABELS[r] ?? r).join(' · ')}
-                        </span>
-                      )}
-
-                      {/* 미성년자 뱃지 */}
-                      {emp.is_minor && (
-                        <span
-                          style={{
-                            padding: '1px 5px',
-                            fontSize: 10,
-                            fontWeight: 700,
-                            borderRadius: 4,
-                            background: 'var(--color-warning-surface)',
-                            color: 'var(--color-warning)',
-                            lineHeight: 1.3,
-                            whiteSpace: 'nowrap',
-                            flexShrink: 0,
-                          }}
-                        >
-                          미성년자
-                        </span>
-                      )}
-                    </div>
-
-                    {/* 2행: 기본 근무타입(컬러 텍스트) + 시간 */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
-                      {shiftType ? (
-                        <>
-                          <span
-                            style={{
-                              fontSize: 12,
-                              fontWeight: 700,
-                              color: SHIFT_TEXT_COLOR[shiftType] ?? 'var(--color-text-subtle)',
-                              letterSpacing: '-0.02em',
-                            }}
-                          >
-                            {SHIFT_LABELS[shiftType] ?? shiftType}
-                          </span>
-                          {shiftDefaults && (
-                            <span className="ui-caption" style={{ color: 'var(--color-text-muted)' }}>
-                              {shiftDefaults.start}~{shiftDefaults.end}
-                            </span>
-                          )}
-                        </>
-                      ) : (
-                        <span className="ui-caption" style={{ color: 'var(--color-text-muted)' }}>기본 근무 미설정</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 우측: 체크박스 인디케이터 */}
-                <div
-                  style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: 6,
-                    border: isSelected ? 'none' : '1.5px solid var(--color-border-strong)',
-                    background: isSelected ? 'var(--color-primary)' : 'transparent',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    marginLeft: 12,
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  {isSelected && (
-                    <svg width="12" height="9" viewBox="0 0 12 9" fill="none">
-                      <path d="M1.5 4.5L4.5 7.5L10.5 1.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  )}
-                </div>
-
-              </div>
-            );
-          })
-        )}
+        {employeeList}
       </div>
 
       {/* 하단 일괄 추가 액션 버튼 */}
@@ -836,12 +898,13 @@ function AddEmployeeBottomSheet({ date, availableEmployees, onClose, onAdd }: Ad
 }
 
 const thStyle: React.CSSProperties = {
-  padding: '6px 2px',
+  padding: '6px 4px',
   fontSize: 11,
   fontWeight: 600,
+  lineHeight: 1.35,
   textAlign: 'center',
-  color: 'var(--color-primary)',
-  borderBottom: 'none',
+  color: 'var(--color-text-muted)',
+  borderBottom: '1px solid var(--color-border)',
   borderRight: '1px solid var(--color-border)',
   background: 'var(--color-surface-subtle)',
   whiteSpace: 'nowrap',

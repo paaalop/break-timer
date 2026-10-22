@@ -1,23 +1,13 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import type { Employee, Role, DayOfWeek, ShiftType, CreateEmployeeInput, UpdateEmployeeInput } from '@/types';
-import { ROLE_OPTIONS, ROLE_LABELS, DAY_OPTIONS, DAY_LABELS, SHIFT_LABELS, SHIFT_TEXT_COLOR } from '@/lib/constants';
-import MultiSelectDropdown from '@/components/ui/MultiSelectDropdown';
-import Badge from '@/components/ui/Badge';
-import ShiftTypePicker from '@/components/ui/ShiftTypePicker';
+import type { Employee, Role, ShiftType, CreateEmployeeInput, UpdateEmployeeInput } from '@/types';
+import { ROLE_OPTIONS, ROLE_LABELS, DAY_LABELS, SHIFT_LABELS, SHIFT_TEXT_COLOR } from '@/lib/constants';
 import Input from '@/components/ui/Input';
-import BottomSheet from '@/components/ui/BottomSheet';
 import Avatar from '@/components/ui/Avatar';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import EmployeeFormModal from '@/components/employees/EmployeeForm';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
-
-// DAY_OPTIONS 순서 그대로 (월~일)
-const DAY_TOGGLE_ORDER: DayOfWeek[] = [1, 2, 3, 4, 5, 6, 0];
-
-function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback;
-}
 
 const ROLE_ORDER: Record<string, number> = Object.fromEntries(
   ROLE_OPTIONS.map((opt, i) => [opt.value, i])
@@ -27,433 +17,6 @@ function getSortedRoles(roles: Role[]): Role[] {
   return [...roles]
     .filter((r) => r in ROLE_LABELS)
     .sort((a, b) => (ROLE_ORDER[a] ?? 99) - (ROLE_ORDER[b] ?? 99));
-}
-
-
-// ─── 모바일 직원 정보 시트 (수정 및 신규 등록 공용 바텀시트) ────────────────────
-interface MobileEmployeeSheetProps {
-  mode: 'edit' | 'add';
-  emp?: Employee;
-  onClose: () => void;
-  onSave: (data: CreateEmployeeInput) => Promise<void>;
-  onDelete?: () => void;
-}
-
-function MobileEmployeeSheet({ mode, emp, onClose, onSave, onDelete }: MobileEmployeeSheetProps) {
-  const isEdit = mode === 'edit';
-  const [name, setName] = useState(emp?.name ?? '');
-  const [roles, setRoles] = useState<Set<Role>>(() => {
-    if (emp) {
-      const valid = emp.available_roles.filter((r): r is Role => r in ROLE_LABELS);
-      return new Set(valid);
-    }
-    return new Set<Role>();
-  });
-  const [days, setDays] = useState<Set<DayOfWeek>>(
-    new Set(emp ? emp.available_days : [])
-  );
-  const [shiftType, setShiftType] = useState<ShiftType>(
-    emp?.default_shift_types[0] ?? 'open'
-  );
-  const [isMinor, setIsMinor] = useState<boolean>(emp?.is_minor ?? false);
-  const [nameError, setNameError] = useState<string | null>(null);
-  const [roleError, setRoleError] = useState<string | null>(null);
-  const [dayError, setDayError] = useState<string | null>(null);
-  const [generalError, setGeneralError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-
-  // ── 폼 핸들러 ──────────────────────────────────────────────────────────────
-  const toggleRole = (r: Role) => {
-    setRoles((prev) => {
-      const next = new Set(prev);
-      if (next.has(r)) next.delete(r);
-      else next.add(r);
-      if (next.size > 0) setRoleError(null);
-      return next;
-    });
-  };
-
-  const toggleDay = (d: DayOfWeek) => {
-    setDays((prev) => {
-      const next = new Set(prev);
-      if (next.has(d)) next.delete(d);
-      else next.add(d);
-      if (next.size > 0) setDayError(null);
-      return next;
-    });
-  };
-
-  const handleSave = async () => {
-    let hasError = false;
-    setNameError(null);
-    setRoleError(null);
-    setDayError(null);
-    setGeneralError(null);
-
-    if (!name.trim()) {
-      setNameError('이름을 입력해 주세요.');
-      hasError = true;
-    }
-    if (days.size === 0) {
-      setDayError('근무 요일을 1개 이상 선택해 주세요.');
-      hasError = true;
-    }
-    if (hasError) return;
-
-    setIsSaving(true);
-    try {
-      await onSave({
-        name: name.trim(),
-        available_roles: getSortedRoles([...roles]),
-        available_days: [...days] as DayOfWeek[],
-        default_shift_types: [shiftType],
-        is_minor: isMinor,
-      });
-      onClose();
-    } catch (err: unknown) {
-      setGeneralError(getErrorMessage(err, isEdit ? '수정 실패' : '등록 실패'));
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const labelStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'baseline',
-    gap: 6,
-    fontSize: 12,
-    fontWeight: 600,
-    color: 'var(--color-text-muted)',
-    marginBottom: 8,
-    letterSpacing: '-0.02em',
-  };
-
-  const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  const handleConfirmDelete = async () => {
-    if (!onDelete) return;
-    setIsDeleting(true);
-    try {
-      await onDelete();
-    } finally {
-      setIsDeleting(false);
-      setShowDeleteConfirmDialog(false);
-    }
-  };
-
-  return (
-    <>
-      <BottomSheet
-        onClose={onClose}
-        maxWidth={480}
-        maxHeight="92vh"
-        padding="10px 20px 36px"
-        gap={20}
-      >
-        {/* 헤더: 제목 + (수정 모드일 때만 우상단 직원 삭제) */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingBottom: 12,
-            minHeight: 28,
-          }}
-        >
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-neutral-dark)', margin: 0, lineHeight: 1 }}>
-            {isEdit ? '직원 정보 수정' : '신규 직원 추가'}
-          </h2>
-          {isEdit && onDelete && (
-            <button
-              type="button"
-              onClick={() => setShowDeleteConfirmDialog(true)}
-              disabled={isSaving || isDeleting}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '4px 0',
-                color: 'var(--color-danger)',
-                fontSize: 13,
-                fontWeight: 600,
-                opacity: isSaving || isDeleting ? 0.4 : 1,
-                letterSpacing: '-0.02em',
-              }}
-            >
-              직원 삭제
-            </button>
-          )}
-        </div>
-
-        {/* 이름 입력 (라벨 + 밑줄 형태 + 전체삭제 x버튼) */}
-        <div>
-          <label style={labelStyle}>
-            이름
-          </label>
-          <Input
-            variant="underline"
-            type="text"
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              if (e.target.value.trim()) setNameError(null);
-            }}
-            placeholder="이름 입력"
-            style={{
-              padding: '8px',
-              fontSize: 20,
-              fontWeight: 700,
-            }}
-          />
-          {nameError && (
-            <p className="ui-caption" style={{ color: 'var(--color-danger)', margin: '6px 0 0', fontWeight: 500 }}>
-              {nameError}
-            </p>
-          )}
-        </div>
-
-        {/* 직무 (다중 선택: 분리된 토글 버튼 그리드) 및 미성년자 토글 버튼 */}
-        <div>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: 8,
-            }}
-          >
-            <label style={{ ...labelStyle, marginBottom: 0 }}>
-              직무
-            </label>
-            <button
-              type="button"
-              onClick={() => setIsMinor((prev) => !prev)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 7,
-                padding: '4px 8px',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-              title="미성년자 여부 (총 근무시간 - 7시간 휴게 적용)"
-              aria-pressed={isMinor}
-            >
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: isMinor ? 700 : 400,
-                  color: isMinor ? 'var(--color-primary)' : 'var(--color-text-muted)',
-                  letterSpacing: '-0.02em',
-                }}
-              >
-                미성년자
-              </span>
-              <div
-                style={{
-                  width: 28,
-                  height: 16,
-                  borderRadius: 8,
-                  background: isMinor ? 'var(--color-primary)' : 'var(--color-border-strong)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '2px',
-                  boxSizing: 'border-box',
-                  transition: 'background-color 0.18s ease',
-                }}
-              >
-                <div
-                  style={{
-                    width: 12,
-                    height: 12,
-                    borderRadius: '50%',
-                    background: 'var(--color-surface)',
-                    transform: isMinor ? 'translateX(12px)' : 'translateX(0px)',
-                    transition: 'transform 0.18s ease',
-                  }}
-                />
-              </div>
-            </button>
-          </div>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: 8,
-              width: '100%',
-              boxSizing: 'border-box',
-            }}
-          >
-            {ROLE_OPTIONS.map((opt) => {
-              const active = roles.has(opt.value);
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => toggleRole(opt.value)}
-                  style={{
-                    border: 'none',
-                    borderRadius: 8,
-                    padding: '11px 0',
-                    fontSize: 13,
-                    fontWeight: active ? 700 : 400,
-                    background: active ? 'transparent' : 'var(--color-muted-bg)',
-                    color: active ? 'var(--color-primary)' : 'var(--color-text-muted)',
-                    cursor: 'pointer',
-                    textAlign: 'center',
-                    transition: 'all 0.15s ease',
-                    whiteSpace: 'nowrap',
-                    letterSpacing: '-0.02em',
-                    outline: active ? '2px solid var(--color-primary)' : 'none',
-                  }}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
-          {isMinor && (
-            <p style={{ fontSize: 11, color: 'var(--color-text-muted)', margin: '6px 0 0', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4 }}>
-              미성년자: 총 근무시간에서 7시간을 뺀 시간(최소 30분)이 휴게시간으로 자동 적용됩니다.
-            </p>
-          )}
-          {roleError && (
-            <p className="ui-caption" style={{ color: 'var(--color-danger)', margin: '6px 0 0', fontWeight: 500 }}>
-              {roleError}
-            </p>
-          )}
-        </div>
-
-        {/* 근무 요일 (다중 선택: 정원형 Circle 버튼) */}
-        <div>
-          <label style={labelStyle}>
-            근무 요일
-          </label>
-          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-            {DAY_TOGGLE_ORDER.map((d) => {
-              const active = days.has(d);
-              return (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => toggleDay(d)}
-                  style={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 13,
-                    fontWeight: active ? 700 : 400,
-                    border: 'none',
-                    background: active ? 'transparent' : 'var(--color-muted-bg)',
-                    color: active ? 'var(--color-primary)' : 'var(--color-text-muted)',
-                    cursor: 'pointer',
-                    padding: 0,
-                    transition: 'all 0.15s ease',
-                    outline: active ? '2px solid var(--color-primary)' : 'none',
-                  }}
-                >
-                  {DAY_LABELS[d]}
-                </button>
-              );
-            })}
-          </div>
-          {/* 에러 발생 시 근무 요일 바로 아래 배치 */}
-          {dayError && (
-            <p className="ui-caption" style={{ color: 'var(--color-danger)', margin: '6px 0 0', fontWeight: 500 }}>
-              {dayError}
-            </p>
-          )}
-        </div>
-
-        {/* 근무 타입 (단일 선택: 세그먼트 컨트롤) */}
-        <div>
-          <label style={labelStyle}>
-            근무 타입
-          </label>
-          <ShiftTypePicker value={shiftType} onChange={setShiftType} showFixedTime disabled={isSaving} />
-        </div>
-
-        {/* 일반 에러 메시지 (API 등) */}
-        {generalError && (
-          <p className="ui-caption" style={{ color: 'var(--color-danger)', fontWeight: 500 }}>{generalError}</p>
-        )}
-
-        {/* 저장 버튼 */}
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={isSaving}
-          style={{
-            width: '100%',
-            padding: '14px 0',
-            fontSize: 14,
-            fontWeight: 700,
-            border: 'none',
-            borderRadius: 8,
-            background: 'var(--color-primary)',
-            color: 'var(--color-on-primary)',
-            cursor: isSaving ? 'not-allowed' : 'pointer',
-            opacity: isSaving ? 0.6 : 1,
-            marginTop: 6,
-            transition: 'opacity 0.15s',
-          }}
-        >
-          {isSaving ? (isEdit ? '저장 중...' : '등록 중...') : (isEdit ? '변경사항 저장' : '직원 등록')}
-        </button>
-      </BottomSheet>
-
-      <ConfirmDialog
-        open={showDeleteConfirmDialog}
-        title="직원을 삭제하시겠습니까?"
-        description="기존에 배정된 스케줄 기록은 유지됩니다."
-        confirmLabel="삭제"
-        danger
-        pending={isDeleting}
-        zIndex={600}
-        onClose={() => setShowDeleteConfirmDialog(false)}
-        onConfirm={handleConfirmDelete}
-      />
-    </>
-  );
-}
-
-// 기존 인터페이스 호환용 래퍼 컴포넌트
-interface MobileEditSheetProps {
-  emp: Employee;
-  onClose: () => void;
-  onSave: (id: string, data: UpdateEmployeeInput) => Promise<void>;
-  onDelete: () => void;
-}
-
-function MobileEditSheet({ emp, onClose, onSave, onDelete }: MobileEditSheetProps) {
-  return (
-    <MobileEmployeeSheet
-      mode="edit"
-      emp={emp}
-      onClose={onClose}
-      onSave={(data) => onSave(emp.id, data)}
-      onDelete={onDelete}
-    />
-  );
-}
-
-interface MobileAddSheetProps {
-  onClose: () => void;
-  onSave: (data: CreateEmployeeInput) => Promise<void>;
-}
-
-function MobileAddSheet({ onClose, onSave }: MobileAddSheetProps) {
-  return (
-    <MobileEmployeeSheet
-      mode="add"
-      onClose={onClose}
-      onSave={onSave}
-    />
-  );
 }
 
 
@@ -487,97 +50,11 @@ export default function EmployeeTable({
   onUpdate,
   isLoading,
 }: EmployeeTableProps) {
-  // 신규 추가 상태
-  const [newName, setNewName] = useState('');
-  const [newRoles, setNewRoles] = useState<Role[]>([]);
-  const [newDays, setNewDays] = useState<DayOfWeek[]>([]);
-  const [newShifts, setNewShifts] = useState<ShiftType[]>(['open']);
-  const [newIsMinor, setNewIsMinor] = useState(false);
-  const [addError, setAddError] = useState<string | null>(null);
-  const [isSubmittingAdd, setIsSubmittingAdd] = useState(false);
-
-  // 데스크탑 수정 상태
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editRoles, setEditRoles] = useState<Role[]>([]);
-  const [editDays, setEditDays] = useState<DayOfWeek[]>([]);
-  const [editShifts, setEditShifts] = useState<ShiftType[]>(['open']);
-  const [editIsMinor, setEditIsMinor] = useState(false);
-  const [editError, setEditError] = useState<string | null>(null);
-  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+  const isDesktop = useMediaQuery('(min-width: 768px)');
 
   // 모바일 검색 + 시트 상태
   const [mobileQuery, setMobileQuery] = useState('');
   const [sheetEmp, setSheetEmp] = useState<Employee | null>(null);
-
-  const resetNewForm = () => {
-    setNewName('');
-    setNewRoles([]);
-    setNewDays([]);
-    setNewShifts(['open']);
-    setNewIsMinor(false);
-    setAddError(null);
-  };
-
-  const handleSaveNewSubmit = async () => {
-    if (!newName.trim()) { setAddError('이름 입력'); return; }
-    if (newDays.length === 0) { setAddError('요일 선택'); return; }
-    if (newShifts.length === 0) { setAddError('타입 선택'); return; }
-    setAddError(null);
-    setIsSubmittingAdd(true);
-    try {
-      await onSaveNew({
-        name: newName.trim(),
-        available_roles: newRoles,
-        available_days: newDays,
-        default_shift_types: newShifts,
-        is_minor: newIsMinor,
-      });
-      resetNewForm();
-    } catch (err: unknown) {
-      setAddError(getErrorMessage(err, '저장 실패'));
-    } finally {
-      setIsSubmittingAdd(false);
-    }
-  };
-
-  // 데스크탑 편집
-  const handleStartEdit = (emp: Employee) => {
-    setEditingId(emp.id);
-    setEditName(emp.name);
-    setEditRoles(emp.available_roles.filter((r): r is Role => r in ROLE_LABELS));
-    setEditDays([...emp.available_days]);
-    setEditShifts(emp.default_shift_types.length ? [emp.default_shift_types[0]] : ['open']);
-    setEditIsMinor(emp.is_minor ?? false);
-    setEditError(null);
-  };
-
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setEditError(null);
-  };
-
-  const handleSaveEditSubmit = async (id: string) => {
-    if (!editName.trim()) { setEditError('이름 입력'); return; }
-    if (editDays.length === 0) { setEditError('요일 선택'); return; }
-    if (editShifts.length === 0) { setEditError('타입 선택'); return; }
-    setEditError(null);
-    setIsSubmittingEdit(true);
-    try {
-      await onUpdate(id, {
-        name: editName.trim(),
-        available_roles: editRoles,
-        available_days: editDays,
-        default_shift_types: editShifts,
-        is_minor: editIsMinor,
-      });
-      setEditingId(null);
-    } catch (err: unknown) {
-      setEditError(getErrorMessage(err, '수정 실패'));
-    } finally {
-      setIsSubmittingEdit(false);
-    }
-  };
 
   // 모바일 시트에서 삭제 (단건 삭제)
   const handleSheetDelete = async () => {
@@ -599,30 +76,6 @@ export default function EmployeeTable({
   const filteredEmployees = sortedEmployees.filter((e) =>
     e.name.includes(mobileQuery.trim())
   );
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // 공통 스타일
-  // ─────────────────────────────────────────────────────────────────────────────
-  const thStyle: React.CSSProperties = {
-    padding: '8px 2px',
-    fontSize: 11,
-    fontWeight: 600,
-    textAlign: 'center',
-    color: 'var(--color-primary)',
-    borderBottom: '1px solid var(--color-border)',
-    borderRight: '1px solid var(--color-border)',
-    background: 'var(--color-surface-subtle)',
-    whiteSpace: 'nowrap',
-  };
-
-  const tdStyle: React.CSSProperties = {
-    padding: '7px 2px',
-    fontSize: 12,
-    textAlign: 'center',
-    borderBottom: '1px solid var(--color-border)',
-    borderRight: '1px solid var(--color-border)',
-    verticalAlign: 'middle',
-  };
 
   if (isLoading) {
     return (
@@ -653,20 +106,7 @@ export default function EmployeeTable({
             <button
               type="button"
               onClick={onDeleteSelected}
-              style={{
-                height: 26,
-                padding: '0 10px',
-                fontSize: 11,
-                fontWeight: 600,
-                background: 'var(--color-danger-surface)',
-                color: 'var(--color-danger)',
-                border: '1px solid var(--color-danger-border)',
-                borderRadius: 4,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-              }}
+              className="ui-button ui-button--sm ui-button--danger"
             >
               선택 삭제 ({selectedIds.length}명)
             </button>
@@ -676,21 +116,7 @@ export default function EmployeeTable({
           onClick={onOpenAdd}
           disabled={isAdding}
           title="직원 추가"
-          style={{
-            height: 28,
-            padding: '0 10px',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 12,
-            fontWeight: 600,
-            background: 'var(--color-primary)',
-            color: 'var(--color-on-primary)',
-            border: 'none',
-            borderRadius: 4,
-            cursor: isAdding ? 'not-allowed' : 'pointer',
-            opacity: isAdding ? 0.35 : 1,
-            gap: 4,
-          }}
+          className="ui-button ui-button--sm ui-button--primary"
         >
           + 직원 추가
         </button>
@@ -770,16 +196,7 @@ export default function EmployeeTable({
               <button
                 type="button"
                 onClick={onDeleteSelected}
-                style={{
-                  padding: '3px 8px',
-                  fontSize: 11,
-                  fontWeight: 600,
-                  background: 'var(--color-danger-surface)',
-                  color: 'var(--color-danger)',
-                  border: '1px solid var(--color-danger-border)',
-                  borderRadius: 4,
-                  cursor: 'pointer',
-                }}
+                className="ui-button ui-button--sm ui-button--danger"
               >
                 선택 삭제 ({selectedIds.length}명)
               </button>
@@ -914,250 +331,104 @@ export default function EmployeeTable({
         </div>
       </div>
 
-      {/* 수정 시트 오버레이 (항상 렌더 – fixed 포지션) */}
+      {/* 직원 수정/추가 모달 (PC: 중앙 모달, 모바일: 바텀시트) */}
       {sheetEmp && (
-        <MobileEditSheet
+        <EmployeeFormModal
+          key={sheetEmp.id}
+          mode="edit"
+          presentation={isDesktop ? 'dialog' : 'sheet'}
           emp={sheetEmp}
           onClose={() => setSheetEmp(null)}
-          onSave={onUpdate}
+          onSave={(data) => onUpdate(sheetEmp.id, data)}
           onDelete={handleSheetDelete}
         />
       )}
-
-      {/* 신규 추가 시트 오버레이 (항상 렌더 – fixed 포지션) */}
       {isAdding && (
-        <MobileAddSheet
+        <EmployeeFormModal
+          mode="add"
+          presentation={isDesktop ? 'dialog' : 'sheet'}
           onClose={onCancelAdd}
           onSave={onSaveNew}
         />
       )}
 
       {/* 데스크탑 테이블 뷰 (md 이상) */}
-      <div className="hidden md:block" style={{ border: '1px solid var(--color-border)', borderRadius: 4, overflow: 'hidden' }}>
-        <div style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <table
-            style={{
-              width: '100%',
-              tableLayout: 'fixed',
-              borderCollapse: 'collapse',
-              background: 'var(--color-surface)',
-            }}
-          >
-            <thead>
+      <div className="hidden md:block emp-table-wrap">
+        <table className="emp-table">
+          <thead>
+            <tr>
+              <th style={{ width: 44 }}>
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  onChange={onToggleSelectAll}
+                  style={{ cursor: 'pointer', margin: 0 }}
+                  aria-label="전체 선택"
+                />
+              </th>
+              <th style={{ width: '20%' }}>이름</th>
+              <th style={{ width: '24%' }}>직무</th>
+              <th style={{ width: '38%' }}>근무 요일</th>
+              <th style={{ width: '18%' }}>근무 타입</th>
+            </tr>
+          </thead>
+          <tbody>
+            {employees.length === 0 && (
               <tr>
-                <th style={{ ...thStyle, width: 32, padding: '4px 2px' }}>
-                  <input
-                    type="checkbox"
-                    checked={isAllSelected}
-                    onChange={onToggleSelectAll}
-                    style={{ cursor: 'pointer', margin: 0 }}
-                    aria-label="전체 선택"
-                  />
-                </th>
-                <th style={{ ...thStyle, width: '14%' }}>이름</th>
-                <th style={{ ...thStyle, width: '20%' }}>직무</th>
-                <th style={{ ...thStyle, width: '45%' }}>근무 요일</th>
-                <th style={{ ...thStyle, width: '21%', borderRight: 'none' }}>근무 타입</th>
+                <td colSpan={5} className="emp-table__empty">등록된 직원이 없습니다.</td>
               </tr>
-            </thead>
-            <tbody>
-              {/* 신규 추가 행 */}
-              {isAdding && (
-                <tr style={{ background: 'var(--color-info-surface)', borderBottom: '2px solid var(--color-primary)' }}>
-                  <td style={{ ...tdStyle, width: 32, padding: '2px 1px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center' }}>
-                      <button
-                        onClick={handleSaveNewSubmit}
-                        disabled={isSubmittingAdd}
-                        title="저장"
-                        style={{ background: 'var(--color-primary)', color: 'var(--color-on-primary)', border: 'none', borderRadius: 2, width: 20, height: 18, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
-                      >
-                        ✓
-                      </button>
-                      <button
-                        onClick={() => { resetNewForm(); onCancelAdd(); }}
-                        disabled={isSubmittingAdd}
-                        title="취소"
-                        style={{ background: 'var(--color-muted-bg)', color: 'var(--color-text-subtle)', border: 'none', borderRadius: 2, width: 20, height: 18, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
-                      >
-                        ✕
-                      </button>
+            )}
+            {sortedEmployees.map((emp) => {
+              const shift = emp.default_shift_types[0] as ShiftType | undefined;
+              const roleLabels = getSortedRoles(emp.available_roles).map((r) => ROLE_LABELS[r]);
+              return (
+                <tr
+                  key={emp.id}
+                  className="emp-row"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) setSheetEmp(emp); }}
+                  onClick={() => setSheetEmp(emp)}
+                >
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(emp.id)}
+                      onChange={() => onToggleSelectOne(emp.id)}
+                      style={{ cursor: 'pointer', margin: 0 }}
+                      aria-label={`${emp.name} 선택`}
+                    />
+                  </td>
+                  <td>
+                    <div className="emp-row__name">
+                      <span className="emp-row__name-text">{emp.name}</span>
+                      {emp.is_minor && <span className="emp-chip emp-chip--warning">미성년자</span>}
                     </div>
                   </td>
-                  <td style={tdStyle}>
-                    <Input
-                      variant="borderless"
-                      type="text"
-                      placeholder="이름"
-                      value={newName}
-                      onChange={(e) => setNewName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleSaveNewSubmit();
-                        if (e.key === 'Escape') { resetNewForm(); onCancelAdd(); }
-                      }}
-                      style={{ padding: '2px 0', fontSize: 12, fontWeight: 600, textAlign: 'center', background: 'transparent' }}
-                      autoFocus
-                    />
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, color: newIsMinor ? 'var(--color-primary)' : 'var(--color-text-muted)', cursor: 'pointer', marginTop: 2 }}>
-                      <input
-                        type="checkbox"
-                        checked={newIsMinor}
-                        onChange={(e) => setNewIsMinor(e.target.checked)}
-                        style={{ margin: 0, width: 12, height: 12, cursor: 'pointer' }}
-                      />
-                      미성년자
-                    </label>
+                  <td>
+                    <span style={{ fontSize: 13, color: 'var(--color-neutral-dark)', letterSpacing: '-0.02em' }}>
+                      {roleLabels.length > 0 ? roleLabels.join(', ') : <span className="emp-row__none">-</span>}
+                    </span>
                   </td>
-                  <td style={tdStyle}>
-                    <MultiSelectDropdown options={ROLE_OPTIONS} selected={newRoles} onChange={setNewRoles} placeholder="직무" />
+                  <td>
+                    <span style={{ fontSize: 13, color: 'var(--color-text-subtle)', letterSpacing: '-0.02em' }}>
+                      {[...emp.available_days]
+                        .sort((a, b) => (a === 0 ? 7 : a) - (b === 0 ? 7 : b))
+                        .map((d) => DAY_LABELS[d] ?? String(d))
+                        .join(', ') || <span className="emp-row__none">-</span>}
+                    </span>
                   </td>
-                  <td style={tdStyle}>
-                    <MultiSelectDropdown options={DAY_OPTIONS} selected={newDays} onChange={setNewDays} placeholder="요일" />
-                  </td>
-                  <td style={{ ...tdStyle, borderRight: 'none' }}>
-                    <ShiftTypePicker value={newShifts[0] ?? 'open'} onChange={(shift) => setNewShifts([shift])} compact showFixedTime disabled={isSubmittingAdd} />
-                    {addError && <div style={{ color: 'var(--color-danger)', fontSize: 10, marginTop: 1 }}>{addError}</div>}
+                  <td>
+                    {shift ? (
+                      <span style={{ fontSize: 13, fontWeight: 600, color: SHIFT_TEXT_COLOR[shift] ?? 'var(--color-text-muted)', letterSpacing: '-0.02em' }}>
+                        {SHIFT_LABELS[shift] ?? shift}
+                      </span>
+                    ) : <span className="emp-row__none">-</span>}
                   </td>
                 </tr>
-              )}
-
-              {/* 빈 상태 */}
-              {employees.length === 0 && !isAdding && (
-                <tr>
-                  <td colSpan={5} style={{ padding: '32px 0', textAlign: 'center', color: 'var(--color-disabled)', fontSize: 12, borderBottom: 'none' }}>
-                    등록된 직원이 없습니다.
-                  </td>
-                </tr>
-              )}
-
-              {/* 기존 직원 행 */}
-              {sortedEmployees.map((emp) => {
-                const isEditing = editingId === emp.id;
-
-                if (isEditing) {
-                  return (
-                    <tr key={emp.id} style={{ background: 'var(--color-warning-surface)', borderBottom: '2px solid var(--color-warning)' }}>
-                      <td style={{ ...tdStyle, width: 32, padding: '2px 1px' }} onClick={(e) => e.stopPropagation()}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center' }}>
-                          <button
-                            onClick={() => handleSaveEditSubmit(emp.id)}
-                            disabled={isSubmittingEdit}
-                            title="저장"
-                            style={{ background: 'var(--color-warning)', color: 'var(--color-on-primary)', border: 'none', borderRadius: 2, width: 20, height: 18, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
-                          >
-                            ✓
-                          </button>
-                          <button
-                            onClick={handleCancelEdit}
-                            disabled={isSubmittingEdit}
-                            title="취소"
-                            style={{ background: 'var(--color-muted-bg)', color: 'var(--color-text-subtle)', border: 'none', borderRadius: 2, width: 20, height: 18, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      </td>
-                      <td style={tdStyle}>
-                        <Input
-                          variant="borderless"
-                          type="text"
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleSaveEditSubmit(emp.id);
-                            if (e.key === 'Escape') handleCancelEdit();
-                          }}
-                          style={{ padding: '2px 0', fontSize: 12, fontWeight: 600, textAlign: 'center', background: 'transparent' }}
-                          autoFocus
-                        />
-                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, color: editIsMinor ? 'var(--color-primary)' : 'var(--color-text-muted)', cursor: 'pointer', marginTop: 2 }}>
-                          <input
-                            type="checkbox"
-                            checked={editIsMinor}
-                            onChange={(e) => setEditIsMinor(e.target.checked)}
-                            style={{ margin: 0, width: 12, height: 12, cursor: 'pointer' }}
-                          />
-                          미성년자
-                        </label>
-                      </td>
-                      <td style={tdStyle}>
-                        <MultiSelectDropdown options={ROLE_OPTIONS} selected={editRoles} onChange={setEditRoles} placeholder="직무" />
-                      </td>
-                      <td style={tdStyle}>
-                        <MultiSelectDropdown options={DAY_OPTIONS} selected={editDays} onChange={setEditDays} placeholder="요일" />
-                      </td>
-                      <td style={{ ...tdStyle, borderRight: 'none' }}>
-                        <ShiftTypePicker value={editShifts[0] ?? 'open'} onChange={(shift) => setEditShifts([shift])} compact showFixedTime disabled={isSubmittingEdit} />
-                        {editError && <div style={{ color: 'var(--color-danger)', fontSize: 10, marginTop: 1 }}>{editError}</div>}
-                      </td>
-                    </tr>
-                  );
-                }
-
-                return (
-                  <tr
-                    key={emp.id}
-                    onClick={() => handleStartEdit(emp)}
-                    style={{ cursor: 'pointer', userSelect: 'none' }}
-                    title="터치하여 즉시 수정"
-                  >
-                    <td style={{ ...tdStyle, width: 32, padding: '4px 2px' }} onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(emp.id)}
-                        onChange={() => onToggleSelectOne(emp.id)}
-                        style={{ cursor: 'pointer', margin: 0 }}
-                        aria-label={`${emp.name} 선택`}
-                      />
-                    </td>
-                    <td style={{ ...tdStyle, fontWeight: 600, fontSize: 12 }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
-                        <span>{emp.name}</span>
-                        {emp.is_minor && (
-                          <span
-                            style={{
-                              padding: '1px 4px',
-                              fontSize: 9,
-                              fontWeight: 700,
-                              borderRadius: 3,
-                              background: 'var(--color-warning-surface)',
-                              color: 'var(--color-warning)',
-                              whiteSpace: 'nowrap',
-                              lineHeight: 1.2,
-                            }}
-                          >
-                            미성년자
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td style={tdStyle}>
-                      <span style={{ fontSize: 11, color: 'var(--color-neutral-dark)' }}>
-                        {getSortedRoles(emp.available_roles).map((r) => ROLE_LABELS[r]).join(', ') || '-'}
-                      </span>
-                    </td>
-                    <td style={tdStyle}>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, justifyContent: 'center' }}>
-                        {[...emp.available_days]
-                          .sort((a, b) => (a === 0 ? 7 : a) - (b === 0 ? 7 : b))
-                          .map((d) => (
-                            <Badge key={d} label={DAY_LABELS[d] ?? String(d)} />
-                          ))}
-                      </div>
-                    </td>
-                    <td style={{ ...tdStyle, borderRight: 'none' }}>
-                      <span style={{ fontSize: 11, color: 'var(--color-neutral-dark)', whiteSpace: 'nowrap' }}>
-                        {emp.default_shift_types[0]
-                          ? (SHIFT_LABELS[emp.default_shift_types[0]] ?? emp.default_shift_types[0])
-                          : '-'}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   </> 

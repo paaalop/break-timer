@@ -27,8 +27,9 @@
 
 ## 공통 UI와 계산
 
-- `components/layout/Header.tsx`: 상단 탐색과 로그아웃.
-- `components/employees/EmployeeTable.tsx`: 직원 목록과 편집 UI.
+- `components/layout/Header.tsx`: PC 상단 헤더 바, 모바일 하단 탭 탐색과 로그아웃.
+- `components/employees/EmployeeTable.tsx`: 직원 목록.
+- `components/employees/EmployeeForm.tsx`: 직원 등록·수정 폼(PC 모달, 모바일 시트).
 - `components/scheduler/`: 근무표 그리드·행, 내보내기, 휴게 모달과 경고.
 - `components/ui/ShiftTypePicker.tsx`: 직원·근무 수정에서 공유하는 근무 타입과 파트 세부 유형 선택.
 - `components/ui/`: 공통 입력·날짜 탐색·아바타·모달 UI.
@@ -40,6 +41,7 @@
 - `lib/breakValidation.ts`: 슬롯 배치 가능 여부, 직원별 오류와 시간대별 포지션 검사.
 - `lib/weekUtils.ts`, `lib/timeUtils.ts`: 날짜·주간 범위·시간 표시 계산.
 - `lib/constants.ts`: 직무·요일·근무 타입 등 공통 상수.
+- `hooks/useMediaQuery.ts`: 뷰포트 미디어 쿼리 훅.
 - `hooks/useRefetchOnFocus.ts`: 창 포커스 복귀 시 데이터 재조회.
 - `components/analytics/ClarityAnalytics.tsx`: Clarity 분석 연동.
 

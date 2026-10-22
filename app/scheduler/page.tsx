@@ -93,71 +93,58 @@ export default function SchedulerPage() {
     <div style={{ minHeight: '100vh', background: 'var(--color-bg)' }}>
       <Header />
 
-      <main className="max-w-[1400px] mx-auto px-0 pt-3 pb-20 sm:px-8 md:px-10 sm:pt-4 sm:pb-24">
-        <PageHeader
-          title="주간 근무표"
-          actions={(
+      <main className="page-main max-w-[1400px] mx-auto px-0 pt-3 pb-20 sm:px-8 md:px-10 sm:pt-4 sm:pb-24">
+        <div className="md:hidden">
+          <PageHeader
+            title="주간 근무표"
+            actions={(
+              <button
+                id="download-schedule-btn-mobile"
+                onClick={handleDownload}
+                title="주간 근무표 이미지 저장"
+                className="ui-button ui-button--quiet ui-button--sm"
+              >
+                이미지 추출
+              </button>
+            )}
+          />
+        </div>
+
+        {/* 데스크톱 통합 상단 툴바 (md 이상): 좌(제목) - 중(크고 뚜렷한 날짜 피커) - 우(이미지 추출 & 자동 채우기) */}
+        <div className="hidden md:flex items-center justify-between mb-6 min-h-[44px]">
+          <div className="flex-1">
+            <h1 className="ui-page-title text-[22px]">주간 근무표</h1>
+          </div>
+
+          <div className="flex items-center justify-center">
+            <DateNavigator
+              className="ui-date-navigator--lg"
+              label={formatWeekRange(selectedWeekStart)}
+              onPrevious={handlePrevWeek}
+              onNext={handleNextWeek}
+              previousLabel="이전 주"
+              nextLabel="다음 주"
+            />
+          </div>
+
+          <div className="flex-1 flex items-center justify-end gap-2">
             <button
               id="download-schedule-btn"
               onClick={handleDownload}
               title="주간 근무표 이미지 저장"
-              style={{
-                padding: '5px 10px',
-                fontSize: 12,
-                fontWeight: 600,
-                border: 'none',
-                borderRadius: 6,
-                background: 'var(--color-muted-bg)',
-                color: 'var(--color-primary)',
-                cursor: 'pointer',
-                letterSpacing: '-0.02em',
-              }}
-              className="hover:bg-[var(--color-muted-bg-hover)] transition-colors"
+              className="ui-button ui-button--secondary ui-button--sm"
             >
               이미지 추출
             </button>
-          )}
-        />
-        {/* 페이지 도구 모음 */}
-        <div className="hidden md:block px-6 sm:px-4" style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 36 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              {/* 데스크톱 주 탐색 네비게이터 (md: 이상 표시) */}
-              <div className="hidden md:block">
-                <DateNavigator
-                  label={formatWeekRange(selectedWeekStart)}
-                  onPrevious={handlePrevWeek}
-                  onNext={handleNextWeek}
-                  previousLabel="이전 주"
-                  nextLabel="다음 주"
-                />
-              </div>
-            </div>
-
-            {/* 우측: (데스크톱) 자동채우기 버튼 */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {/* 데스크톱 전용 자동 채우기 버튼 */}
-              <button
-                id="autofill-schedule-btn"
-                className="hidden md:block"
-                onClick={() => autoFillWeekSchedules(selectedWeekStart, employees)}
-                disabled={isLoading || employees.length === 0}
-                style={{
-                  padding: '6px 12px',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  border: 'none',
-                  borderRadius: 6,
-                  background: 'var(--color-primary)',
-                  color: 'var(--color-on-primary)',
-                  cursor: employees.length === 0 ? 'not-allowed' : 'pointer',
-                  opacity: employees.length === 0 ? 0.5 : 1,
-                }}
-                title="등록된 직원들의 근무 가능 요일과 기본 근무 타입으로 이번 주 스케줄을 자동 배치합니다"
-              >
-                자동 채우기
-              </button>
-            </div>
+            <button
+              id="autofill-schedule-btn"
+              className="ui-button ui-button--primary ui-button--sm"
+              onClick={() => autoFillWeekSchedules(selectedWeekStart, employees)}
+              disabled={isLoading || employees.length === 0}
+              title="등록된 직원들의 근무 가능 요일과 기본 근무 타입으로 이번 주 스케줄을 자동 배치합니다"
+            >
+              자동 채우기
+            </button>
           </div>
         </div>
 
