@@ -94,4 +94,28 @@ describe('part shift selection', () => {
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '변경사항 저장' }));
     await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ shift_type: 'part', start_time: '11:00', end_time: '16:30' })));
   });
+
+  it('hides fixed time label and shows only time picker buttons when switching from fixed part to custom', () => {
+    const fixedSchedule: WorkSchedule = {
+      ...schedule,
+      shift_type: 'part_open',
+      start_time: '10:30',
+      end_time: '14:00',
+    };
+    render(<EmployeeRow schedule={fixedSchedule} isSelected={false} onToggleSelect={vi.fn()} variant="mobile" />);
+    fireEvent.click(screen.getByText('테스트직원'));
+    const dialog = screen.getByRole('dialog');
+
+    // 오파 상태: 고정 시간 텍스트 노출, 피커 버튼 없음
+    expect(within(dialog).getByText('10:30 ~ 14:00')).toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: '10:30' })).not.toBeInTheDocument();
+
+    // 직접입력 클릭
+    fireEvent.click(within(dialog).getByRole('button', { name: '직접입력' }));
+
+    // 고정 시간 텍스트 숨김, 시간 피커 버튼만 노출
+    expect(within(dialog).queryByText('10:30 ~ 14:00')).not.toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: '10:30' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: '14:00' })).toBeInTheDocument();
+  });
 });

@@ -229,7 +229,7 @@ function ShiftBottomSheet({ schedule, onClose }: ShiftBottomSheetProps) {
       </div>
 
       {/* 파트타임 시간 선택 */}
-      {isFixedPartShift(shiftType) && (
+      {!isCustom && isFixedPartShift(shiftType) && (
         <div>
           <label style={labelStyle}>근무 시간</label>
           <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-neutral-dark)', fontVariantNumeric: 'tabular-nums' }}>
