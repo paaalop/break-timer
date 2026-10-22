@@ -9,18 +9,23 @@ interface ShiftTypePickerProps {
   compact?: boolean;
   disabled?: boolean;
   showFixedTime?: boolean;
+  customActive?: boolean;
+  onSelectCustom?: () => void;
 }
 
-export default function ShiftTypePicker({ value, onChange, compact = false, disabled = false, showFixedTime = false }: ShiftTypePickerProps) {
-  const isPart = isPartShift(value);
-  const renderOptions = (options: { value: ShiftType; label: string }[], secondary = false) => (
+export default function ShiftTypePicker({ value, onChange, compact = false, disabled = false, showFixedTime = false, customActive = false, onSelectCustom }: ShiftTypePickerProps) {
+  const isPart = isPartShift(value) && !customActive;
+  const renderOptions = (options: { value: ShiftType; label: string }[], secondary = false) => {
+    const withCustom = !secondary && !!onSelectCustom;
+    const columns = options.length + (withCustom ? 1 : 0);
+    return (
     <div role="group" aria-label={secondary ? '파트 유형' : '근무 타입'} style={{
-      display: 'grid', gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))`,
+      display: 'grid', gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
       width: '100%', padding: 3, borderRadius: 8, gap: 3, boxSizing: 'border-box',
       background: secondary ? 'var(--color-surface-subtle)' : 'var(--color-muted-bg)',
     }}>
       {options.map((option) => {
-        const active = secondary ? value === option.value : (option.value === 'part' ? isPart : value === option.value);
+        const active = secondary ? value === option.value : customActive ? false : (option.value === 'part' ? isPart : value === option.value);
         return <button key={option.value} type="button" aria-pressed={active} disabled={disabled}
           onClick={() => onChange(!secondary && option.value === 'part' && isPart ? value : option.value)}
           style={{
@@ -33,8 +38,19 @@ export default function ShiftTypePicker({ value, onChange, compact = false, disa
             border: active ? '1px solid var(--color-border)' : '1px solid transparent',
           }}>{option.label}</button>;
       })}
+      {withCustom && <button type="button" aria-pressed={customActive} disabled={disabled} onClick={onSelectCustom}
+        style={{
+          minWidth: 0, borderRadius: 6, padding: compact ? '6px 0' : '10px 0',
+          fontSize: compact ? 11 : 13, fontWeight: customActive ? 700 : 500,
+          background: customActive ? 'var(--color-surface)' : 'transparent',
+          color: customActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
+          cursor: disabled ? 'default' : 'pointer', textAlign: 'center', whiteSpace: 'nowrap',
+          letterSpacing: '-0.02em', transition: 'all 0.15s ease', opacity: disabled ? 0.6 : 1,
+          border: customActive ? '1px solid var(--color-border)' : '1px solid transparent',
+        }}>직접입력</button>}
     </div>
-  );
+    );
+  };
 
   return <div style={{ display: 'flex', flexDirection: 'column', gap: compact ? 6 : 12 }}>
     {renderOptions(SHIFT_OPTIONS)}

@@ -1,11 +1,11 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
 import BottomSheet from '@/components/ui/BottomSheet';
 import Avatar from '@/components/ui/Avatar';
 import { getBreakDurationMinutes, overlaps, toMinutes, toTimeStr } from '@/lib/autoBreakAlgo';
 import { getSlotBreakUnavailableReason } from '@/lib/breakValidation';
-import { ALL_ROLES, ROLE_LABELS, SHIFT_LABELS, SHIFT_TEXT_COLOR } from '@/lib/constants';
+import { ALL_ROLES, ROLE_LABELS, getShiftDisplay } from '@/lib/constants';
 import { useScheduleStore } from '@/store/useScheduleStore';
 import type { WorkSchedule } from '@/types';
 
@@ -121,7 +121,7 @@ export default function SlotBreakModal({ startMin, schedules, onSaved, onClose }
                         {schedule.employee?.is_minor && <span style={{ padding: '1px 5px', fontSize: 10, fontWeight: 700, borderRadius: 4, background: 'var(--color-warning-surface)', color: 'var(--color-warning)', lineHeight: 1.3, whiteSpace: 'nowrap', flexShrink: 0 }}>미성년자</span>}
                       </span>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: SHIFT_TEXT_COLOR[schedule.shift_type] }}>{SHIFT_LABELS[schedule.shift_type]}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: getShiftDisplay(schedule.shift_type, schedule.custom_label).color }}>{getShiftDisplay(schedule.shift_type, schedule.custom_label).label}</span>
                         <span className="ui-caption">{schedule.start_time.slice(0, 5)}~{schedule.end_time.slice(0, 5)}</span>
                       </span>
                     </span>

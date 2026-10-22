@@ -16,6 +16,7 @@ CREATE TABLE work_schedules (
     employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
     work_date DATE NOT NULL,
     shift_type TEXT NOT NULL,
+    custom_label TEXT,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
     break_start_time TIME,

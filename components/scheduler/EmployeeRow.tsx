@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import type { WorkSchedule, ShiftType } from '@/types';
-import { SHIFT_LABELS, ROLE_LABELS, SHIFT_TEXT_COLOR, getShiftTimes, isFixedPartShift } from '@/lib/constants';
+import { ROLE_LABELS, SHIFT_LABELS, SHIFT_DEFAULTS, CUSTOM_LABEL_MAX_LENGTH, getShiftTimes, isFixedPartShift, getShiftDisplay, normalizeCustomLabel } from '@/lib/constants';
 import { useScheduleStore } from '@/store/useScheduleStore';
 import BottomSheet from '@/components/ui/BottomSheet';
 import ShiftTypePicker from '@/components/ui/ShiftTypePicker';
@@ -116,6 +116,8 @@ interface ShiftBottomSheetProps {
 function ShiftBottomSheet({ schedule, onClose }: ShiftBottomSheetProps) {
   const { upsertSchedule, deleteSchedule } = useScheduleStore();
   const [shiftType, setShiftType] = useState<ShiftType>(schedule.shift_type);
+  const [isCustom, setIsCustom] = useState(!!schedule.custom_label?.trim());
+  const [customLabel, setCustomLabel] = useState(schedule.custom_label?.trim() ?? '');
   const [startTime, setStartTime] = useState(formatTimeHHMM(schedule.start_time) || '10:30');
   const [endTime, setEndTime] = useState(formatTimeHHMM(schedule.end_time) || '10:30');
   const [isSaving, setIsSaving] = useState(false);
@@ -137,20 +139,37 @@ function ShiftBottomSheet({ schedule, onClose }: ShiftBottomSheetProps) {
   // ── 근무 타입 변경 ─────────────────────────────────────────────────────────
   const handleShiftSelect = (newShift: ShiftType) => {
     const defaults = getShiftTimes(newShift, shiftType, { start: startTime, end: endTime });
+    setIsCustom(false);
     setShiftType(newShift);
     setStartTime(defaults.start);
     setEndTime(defaults.end);
   };
 
+  // 직접입력 선택: 기본 텍스트는 직전 근무 타입의 라벨, 시간은 직전 타입 기본 시간(파트는 입력 중인 시간 유지)
+  const handleSelectCustom = () => {
+    if (isCustom) return;
+    setIsCustom(true);
+    setCustomLabel(SHIFT_LABELS[shiftType]);
+    if (!isFixedPartShift(shiftType) && shiftType !== 'part') {
+      setStartTime(SHIFT_DEFAULTS[shiftType].start);
+      setEndTime(SHIFT_DEFAULTS[shiftType].end);
+    }
+  };
+
   // ── 저장 ──────────────────────────────────────────────────────────────────
   const handleSave = async () => {
+    if (isCustom && !customLabel.trim()) return;
     setIsSaving(true);
     try {
+      const labeled = isCustom
+        ? normalizeCustomLabel(customLabel, shiftType)
+        : { shift_type: shiftType, custom_label: null };
       await upsertSchedule({
         id: schedule.id,
         employee_id: schedule.employee_id,
         work_date: schedule.work_date,
-        shift_type: shiftType,
+        shift_type: labeled.shift_type,
+        custom_label: labeled.custom_label,
         start_time: startTime,
         end_time: endTime,
         break_start_time: schedule.break_start_time,
@@ -162,7 +181,7 @@ function ShiftBottomSheet({ schedule, onClose }: ShiftBottomSheetProps) {
     }
   };
 
-  const isPartTime = shiftType === 'part';
+  const isPartTime = shiftType === 'part' || isCustom;
 
   return (
     <>
@@ -231,7 +250,19 @@ function ShiftBottomSheet({ schedule, onClose }: ShiftBottomSheetProps) {
           <label style={labelStyle}>
             근무 타입
           </label>
-          <ShiftTypePicker value={shiftType} onChange={handleShiftSelect} disabled={isSaving} />
+          <ShiftTypePicker value={shiftType} onChange={handleShiftSelect} disabled={isSaving} customActive={isCustom} onSelectCustom={handleSelectCustom} />
+          {isCustom && (
+            <input
+              type="text"
+              value={customLabel}
+              maxLength={CUSTOM_LABEL_MAX_LENGTH}
+              onChange={(e) => setCustomLabel(e.target.value)}
+              placeholder="근무 타입 입력 (예: 월차)"
+              aria-label="근무 타입 직접입력"
+              disabled={isSaving}
+              style={{ ...sheetUnderlineButtonStyle, marginTop: 12, fontSize: 16, fontWeight: 700, color: 'var(--color-neutral-dark)', width: '100%', boxSizing: 'border-box', outline: 'none' }}
+            />
+          )}
         </div>
 
         {/* 파트타임 시간 선택 */}
@@ -302,7 +333,7 @@ function ShiftBottomSheet({ schedule, onClose }: ShiftBottomSheetProps) {
         <button
           type="button"
           onClick={handleSave}
-          disabled={isSaving}
+          disabled={isSaving || (isCustom && !customLabel.trim())}
           style={{
             width: '100%',
             padding: '14px 0',
@@ -312,8 +343,8 @@ function ShiftBottomSheet({ schedule, onClose }: ShiftBottomSheetProps) {
             borderRadius: 8,
             background: 'var(--color-primary)',
             color: 'var(--color-on-primary)',
-            cursor: isSaving ? 'not-allowed' : 'pointer',
-            opacity: isSaving ? 0.6 : 1,
+            cursor: isSaving || (isCustom && !customLabel.trim()) ? 'not-allowed' : 'pointer',
+            opacity: isSaving || (isCustom && !customLabel.trim()) ? 0.6 : 1,
             marginTop: 6,
             transition: 'opacity 0.15s',
             letterSpacing: '-0.02em',
@@ -376,7 +407,7 @@ export default function EmployeeRow(props: EmployeeRowProps) {
 
   return (
     <EmployeeRowContent
-      key={`${schedule.id}-${schedule.shift_type}-${schedule.start_time}-${schedule.end_time}`}
+      key={`${schedule.id}-${schedule.shift_type}-${schedule.custom_label ?? ''}-${schedule.start_time}-${schedule.end_time}`}
       {...props}
     />
   );
@@ -393,6 +424,7 @@ function EmployeeRowContent({
 }: EmployeeRowProps) {
   const { upsertSchedule } = useScheduleStore();
   const shiftType = schedule.shift_type;
+  const shiftDisplay = getShiftDisplay(shiftType, schedule.custom_label);
   const [startTime, setStartTime] = useState(schedule.start_time);
   const [endTime, setEndTime] = useState(schedule.end_time);
   const [isSaving, setIsSaving] = useState(false);
@@ -497,7 +529,7 @@ function EmployeeRowContent({
     }
   };
 
-  const isPartTime = shiftType === 'part';
+  const isPartTime = shiftType === 'part' || !!schedule.custom_label?.trim();
   const roles = schedule.employee?.available_roles ?? [];
   const sortedRoles = (['manager', 'cashier', 'pass'] as const).filter((r) => roles.includes(r));
   const hasBreakWarning = isBreakOutsideWorkHours({
@@ -625,12 +657,12 @@ function EmployeeRowContent({
               style={{
                 fontSize: 12,
                 fontWeight: 700,
-                color: SHIFT_TEXT_COLOR[shiftType] ?? 'var(--color-text-subtle)',
+                color: shiftDisplay.color,
                 letterSpacing: '-0.02em',
                 whiteSpace: 'nowrap',
               }}
             >
-              {SHIFT_LABELS[shiftType]}
+              {shiftDisplay.label}
             </span>
 
             {/* 근무 시간 (정갈한 tabular-nums 정렬) */}
@@ -741,8 +773,8 @@ function EmployeeRowContent({
             <td style={{ ...tdStyle, width: '24%' }}>
               <button type="button" onClick={() => setShowSheet(true)} disabled={isSaving}
                 aria-label={`${schedule.employee?.name ?? ''} 근무 타입 수정`}
-                style={{ border: 'none', background: 'transparent', padding: '3px 0', fontSize: 12, color: SHIFT_TEXT_COLOR[shiftType], cursor: 'pointer' }}>
-                {SHIFT_LABELS[shiftType]}
+                style={{ border: 'none', background: 'transparent', padding: '3px 0', fontSize: 12, color: shiftDisplay.color, cursor: 'pointer' }}>
+                {shiftDisplay.label}
               </button>
             </td>
 

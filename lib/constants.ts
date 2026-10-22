@@ -86,3 +86,24 @@ export const BREAK_BLOCK_MINUTES = 30;
 export const BREAK_BLOCKS: Record<Exclude<ShiftType, PartShiftType>, number> = {
   oma: 3, open: 3, close: 3,
 };
+
+export const CUSTOM_LABEL_MAX_LENGTH = 8;
+
+const TEMPLATE_LABEL_TYPES: ShiftType[] = ['open', 'close', 'oma', 'part'];
+
+// 표시 라벨/색상: custom_label 우선, 템플릿 라벨과 일치하면 해당 타입 색상
+export function getShiftDisplay(shift: ShiftType, customLabel?: string | null): { label: string; color: string } {
+  const label = customLabel?.trim();
+  if (!label) return { label: SHIFT_LABELS[shift], color: SHIFT_TEXT_COLOR[shift] };
+  const matched = (Object.keys(SHIFT_LABELS) as ShiftType[]).find((key) => SHIFT_LABELS[key] === label);
+  return { label, color: matched ? SHIFT_TEXT_COLOR[matched] : 'var(--color-text-muted)' };
+}
+
+// 직접입력 텍스트를 저장 값으로 변환: 오픈/마감/오마/파트와 일치하면 해당 타입으로 전환하고 라벨은 비움
+export function normalizeCustomLabel(text: string, base: ShiftType): { shift_type: ShiftType; custom_label: string | null } {
+  const label = text.trim().slice(0, CUSTOM_LABEL_MAX_LENGTH);
+  const matched = TEMPLATE_LABEL_TYPES.find((key) => SHIFT_LABELS[key] === label);
+  if (matched) return { shift_type: matched, custom_label: null };
+  // 고정 시간 파트는 시간이 덮어써지므로 직접입력에서는 일반 파트로 취급
+  return { shift_type: isFixedPartShift(base) ? 'part' : base, custom_label: label || null };
+}

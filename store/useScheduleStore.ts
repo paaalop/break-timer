@@ -294,6 +294,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
             employee_id: data.employee_id,
             work_date: data.work_date,
             shift_type: data.shift_type,
+            custom_label: data.custom_label ?? null,
             start_time: data.start_time,
             end_time: data.end_time,
             break_start_time: data.break_start_time ?? null,

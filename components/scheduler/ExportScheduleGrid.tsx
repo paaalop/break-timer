@@ -2,7 +2,7 @@
 
 import { forwardRef } from 'react';
 import type { WorkSchedule, Employee } from '@/types';
-import { SHIFT_LABELS, SHIFT_TEXT_COLOR } from '@/lib/constants';
+import { getShiftDisplay } from '@/lib/constants';
 import { getWeekDates, formatDayLabel, formatWeekRange } from '@/lib/weekUtils';
 
 function formatHHMM(timeStr?: string | null): string {
@@ -213,13 +213,13 @@ const ExportScheduleGrid = forwardRef<HTMLDivElement, ExportScheduleGridProps>(
                           style={{
                             fontSize: 9.5,
                             fontWeight: 700,
-                            color: SHIFT_TEXT_COLOR[s.shift_type] ?? 'var(--color-text-subtle)',
+                            color: getShiftDisplay(s.shift_type, s.custom_label).color,
                             lineHeight: 1.2,
                             flex: '0 0 auto',
                             whiteSpace: 'nowrap',
                           }}
                         >
-                          {SHIFT_LABELS[s.shift_type]}
+                          {getShiftDisplay(s.shift_type, s.custom_label).label}
                         </span>
 
                         {/* 근무시간 (우측 정렬) */}

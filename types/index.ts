@@ -27,6 +27,7 @@ export interface WorkSchedule {
   employee_id: string;
   work_date: string;            // 'YYYY-MM-DD'
   shift_type: ShiftType;
+  custom_label?: string | null; // 직접입력 근무 타입 텍스트
   start_time: string;           // 'HH:MM'
   end_time: string;             // 'HH:MM'
   break_start_time: string | null;  // 'HH:MM'
@@ -41,6 +42,7 @@ export interface UpsertScheduleInput {
   employee_id: string;
   work_date: string;
   shift_type: ShiftType;
+  custom_label?: string | null;
   start_time: string;
   end_time: string;
   break_start_time?: string | null;
